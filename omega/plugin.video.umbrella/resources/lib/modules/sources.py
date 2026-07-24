@@ -20,6 +20,12 @@ from resources.lib.modules import string_tools
 from resources.lib.modules.source_utils import supported_video_extensions, getFileType, aliases_check
 from resources.lib.cloud_scrapers import cloudSources
 from resources.lib.internal_scrapers import internalSources
+from resources.lib.downstream.resolver_policy import (
+	ResolutionCoordinator,
+	infringing_cache,
+	source_key,
+	unique_source_queue,
+)
 
 homeWindow = control.homeWindow
 playerWindow = control.playerWindow
@@ -61,6 +67,7 @@ class Sources:
 		self.external_module = getSetting('external_provider.module')
 		self.isHidden = getSetting('progress.dialog') == '4'
 		self.useTitleSubs = getSetting('sources.useTitleSubs') == 'true'
+		self._resolve_coordinator = ResolutionCoordinator()
 
 	def play(self, title, year, imdb, tmdb, tvdb, season, episode, tvshowtitle, premiered, meta, select, rescrape=None):
 		if not self.prem_providers:
@@ -434,9 +441,14 @@ class Sources:
 				sources_next = items[source_index+1:next_end]
 				sources_prev = [] if next_end < source_len else items[0:41-(source_len-source_index)]
 				if getSetting('sources.useonlyone')== 'true':
-					resolve_items = chosen_source
+					resolve_items = unique_source_queue(chosen_source, limit=1)
 				else:
-					resolve_items = [i for i in chosen_source + sources_next + sources_prev]
+					resolve_items = unique_source_queue(
+						chosen_source + sources_next + sources_prev,
+						season=meta.get('season') if isinstance(meta, dict) else None,
+						episode=meta.get('episode') if isinstance(meta, dict) else None,
+						limit=8,
+					)
 			except: log_utils.error()
 			try:
 				poster = meta.get('poster')
@@ -460,8 +472,11 @@ class Sources:
 				homeWindow.clearProperty('umbrella.window_keep_alive')
 				progressDialog = control.progressDialogBG
 				progressDialog.create(header, '')
+			resolve_started = time()
 			for i in range(len(resolve_items)):
 				try:
+					if time() - resolve_started >= 60:
+						break
 					resolve_index = items.index(resolve_items[i])+1
 					src_provider = resolve_items[i]['debrid'] if resolve_items[i].get('debrid') else ('%s - %s' % (resolve_items[i]['source'], resolve_items[i]['provider']))
 					if getSetting('progress.dialog') == '0':
@@ -484,7 +499,12 @@ class Sources:
 						progressDialog.update(int((100 / float(len(resolve_items))) * i), label)
 					except: 
 						progressDialog.update(int((100 / float(len(resolve_items))) * i), '[COLOR %s]Resolving...[/COLOR]%s' % (self.highlight_color, resolve_items[i]['name']))
-					w = Thread(target=self.sourcesResolve, args=(resolve_items[i],))
+					generation = self._resolve_coordinator.begin()
+					current_item = resolve_items[i]
+					def _resolve_current(item=current_item, current_generation=generation):
+						result = self.sourcesResolve(item, publish=False)
+						self._resolve_coordinator.complete(current_generation, result)
+					w = Thread(target=_resolve_current)
 					w.start()
 					for x in range(40):
 						try:
@@ -498,6 +518,11 @@ class Sources:
 						except: pass
 						if not w.is_alive(): break
 						control.sleep(200)
+					if w.is_alive():
+						self._resolve_coordinator.invalidate(generation)
+						log_utils.log('Resolver attempt exceeded 8 seconds; stopping this action without starting another attempt.', level=log_utils.LOGWARNING)
+						break
+					self.url = self._resolve_coordinator.result(generation)
 					if not self.url: continue
 					# if not any(x in self.url.lower() for x in video_extensions):
 					if not any(x in self.url.lower() for x in video_extensions) and 'plex.direct:' not in self.url and 'torbox' not in self.url and 'tb-cdn' not in self.url and 'plugin://plugin.video.composite_for_plex' not in self.url:
@@ -1414,10 +1439,14 @@ class Sources:
 			del progressDialog
 		return url
 
-	def sourcesResolve(self, item):
+	def sourcesResolve(self, item, publish=True):
+		def _publish(resolved):
+			if publish:
+				self.url = resolved
+			return resolved
 		try:
 			url = item['url']
-			self.url = None
+			if publish: self.url = None
 			debrid_provider = item['debrid'] if item.get('debrid') else ''
 		except: log_utils.error()
 		if 'magnet:' in url:
@@ -1445,9 +1474,17 @@ class Sources:
 						from resources.lib.debrid.torbox import TorBox as debrid_function
 					else: return
 					
-					url = debrid_function().resolve_magnet(url, item['hash'], season, episode, title)
-					self.url = url
-					return url
+					if debrid_provider == 'Real-Debrid':
+						cache_key = source_key(item, season, episode)
+						if infringing_cache.contains(cache_key):
+							return None
+						debrid_client = debrid_function()
+						url = debrid_client.resolve_magnet(url, item['hash'], season, episode, title)
+						if getattr(debrid_client.last_error, 'error_code', 0) == 35:
+							infringing_cache.add(cache_key)
+					else:
+						url = debrid_function().resolve_magnet(url, item['hash'], season, episode, title)
+					return _publish(url)
 				except:
 					log_utils.error()
 					return
@@ -1460,8 +1497,7 @@ class Sources:
 						try:
 							call = [i[1] for i in self.sourceDict if i[0] == item['provider']][0]
 							url = call().resolve(url)
-							self.url = url
-							return url
+							return _publish(url)
 						except: pass
 					else:
 						if item.get('provider') == 'easynews':
@@ -1472,11 +1508,9 @@ class Sources:
 								if resolved:
 									if getSetting('easynews.seekable') != 'true':
 										resolved += '|seekable=0'
-									self.url = resolved
-									return resolved
+									return _publish(resolved)
 							except: log_utils.error()
-						self.url = url
-						return url
+						return _publish(url)
 				else: # hosters
 					if debrid_provider == 'Real-Debrid':
 						from resources.lib.debrid.realdebrid import RealDebrid as debrid_function
@@ -1487,8 +1521,7 @@ class Sources:
 					#elif debrid_provider == 'TorBox':
 					#	from resources.lib.debrid.torbox import TorBox as debrid_function
 					url = debrid_function().unrestrict_link(url)
-					self.url = url
-					return url
+					return _publish(url)
 			except:
 				log_utils.error()
 				return
@@ -1610,7 +1643,7 @@ class Sources:
 					if not episode: mediatype = 'movie'
 					else: mediatype = 'episode'
 					select = getSetting('play.mode.movie') if mediatype == 'movie' else getSetting('play.mode.tv')
-					systitle, sysmeta = quote_plus(str(title or '')), quote_plus(jsdumps(self.meta))
+					systitle, sysmeta = quote_plus(str(title or '')), quote_plus(jsdumps(getattr(self, 'meta', {}) or {}))
 					if tvshowtitle:
 						url = '%s?action=rescrapeAuto&title=%s&year=%s&imdb=%s&tmdb=%s&tvdb=%s&season=%s&episode=%s&tvshowtitle=%s&premiered=%s&meta=%s&select=%s' % (
 								plugin, systitle, year, imdb, tmdb, tvdb, season, episode, quote_plus(str(tvshowtitle or '')), premiered, sysmeta, select)

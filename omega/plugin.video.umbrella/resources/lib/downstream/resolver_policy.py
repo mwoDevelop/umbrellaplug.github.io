@@ -84,3 +84,28 @@ class ResolutionCoordinator:
 
 
 infringing_cache = NegativeCache()
+
+
+def resolve_real_debrid_source(
+	item,
+	season,
+	episode,
+	title,
+	client_factory,
+	negative_cache=infringing_cache,
+):
+	"""Resolve one RD source while enforcing the session negative cache."""
+	cache_key = source_key(item, season, episode)
+	if negative_cache.contains(cache_key):
+		return None
+	client = client_factory()
+	resolved = client.resolve_magnet(
+		item['url'],
+		item['hash'],
+		season,
+		episode,
+		title,
+	)
+	if getattr(getattr(client, 'last_error', None), 'error_code', 0) == 35:
+		negative_cache.add(cache_key)
+	return resolved

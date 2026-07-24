@@ -2,8 +2,14 @@ from resources.lib.downstream.resolver_policy import (
 	NegativeCache,
 	ResolutionCoordinator,
 	normalized_metadata,
+	resolve_real_debrid_source,
 	source_key,
 	unique_source_queue,
+)
+from resources.lib.downstream.rd_transport_policy import (
+	RDError,
+	RDTransportPolicy,
+	classify_response,
 )
 
 
@@ -53,3 +59,70 @@ def test_missing_metadata_is_normalized_without_copying_valid_mapping():
 	assert normalized_metadata(meta) is meta
 	assert normalized_metadata(None) == {}
 	assert normalized_metadata('invalid') == {}
+
+
+class _Response:
+	def __init__(self, status, payload):
+		self.status_code = status
+		self._payload = payload
+		self.headers = {}
+
+	def json(self):
+		return self._payload
+
+
+class _Session:
+	def __init__(self, responses):
+		self.responses = iter(responses)
+		self.calls = 0
+
+	def request(self, method, url, **kwargs):
+		self.calls += 1
+		return next(self.responses)
+
+
+def test_source_to_transport_retries_34_and_returns_success(monkeypatch):
+	import resources.lib.downstream.rd_transport_policy as transport_module
+
+	monkeypatch.setattr(transport_module, 'sleep', lambda seconds: None)
+	session = _Session(
+		[
+			_Response(429, {'error': 'too_many_requests', 'error_code': 34}),
+			_Response(200, {'download': 'https://example.invalid/sintel.mp4'}),
+		]
+	)
+
+	class Client:
+		last_error = RDError()
+
+		def resolve_magnet(self, url, info_hash, season, episode, title):
+			response = RDTransportPolicy(
+				min_interval=0, fallback_backoff=0, jitter=(0, 0)
+			).request(session, 'POST', 'https://api.real-debrid.invalid')
+			self.last_error = classify_response(response)
+			return response.json().get('download')
+
+	result = resolve_real_debrid_source(
+		_item('D' * 40), None, None, 'Sintel', Client, NegativeCache()
+	)
+	assert result == 'https://example.invalid/sintel.mp4'
+	assert session.calls == 2
+
+
+def test_source_to_transport_caches_35_for_session():
+	factory_calls = []
+
+	class Client:
+		last_error = RDError(error_code=35, error='infringing_file')
+
+		def __init__(self):
+			factory_calls.append(1)
+
+		def resolve_magnet(self, url, info_hash, season, episode, title):
+			return None
+
+	cache = NegativeCache()
+	item = _item('E' * 40)
+	assert resolve_real_debrid_source(item, None, None, 'Sintel', Client, cache) is None
+	assert resolve_real_debrid_source(item, None, None, 'Sintel', Client, cache) is None
+	assert len(factory_calls) == 1

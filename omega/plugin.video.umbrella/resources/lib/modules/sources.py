@@ -24,7 +24,7 @@ from resources.lib.downstream.resolver_policy import (
 	ResolutionCoordinator,
 	infringing_cache,
 	normalized_metadata,
-	source_key,
+	resolve_real_debrid_source,
 	unique_source_queue,
 )
 from resources.lib.downstream.provider_context_policy import provider_context
@@ -1481,13 +1481,9 @@ class Sources:
 					else: return
 					
 					if debrid_provider == 'Real-Debrid':
-						cache_key = source_key(item, season, episode)
-						if infringing_cache.contains(cache_key):
-							return None
-						debrid_client = debrid_function()
-						url = debrid_client.resolve_magnet(url, item['hash'], season, episode, title)
-						if getattr(debrid_client.last_error, 'error_code', 0) == 35:
-							infringing_cache.add(cache_key)
+						url = resolve_real_debrid_source(
+							item, season, episode, title, debrid_function, infringing_cache
+						)
 					else:
 						url = debrid_function().resolve_magnet(url, item['hash'], season, episode, title)
 					return _publish(url)

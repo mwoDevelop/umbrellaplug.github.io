@@ -1461,9 +1461,10 @@ class Sources:
 						meta = jsloads(unquote(meta.replace('%22', '\\"')))
 						season, episode, title = meta.get('season'), meta.get('episode'), meta.get('title')
 					else:
-						season = homeWindow.getProperty(self.seasonProperty)
-						episode = homeWindow.getProperty(self.episodeProperty)
-						title = homeWindow.getProperty(self.titleProperty)
+						meta = normalized_metadata(getattr(self, 'meta', None))
+						season = meta.get('season') or homeWindow.getProperty(self.seasonProperty)
+						episode = meta.get('episode') or homeWindow.getProperty(self.episodeProperty)
+						title = meta.get('tvshowtitle') or meta.get('title') or homeWindow.getProperty(self.titleProperty)
 					if debrid_provider == 'Real-Debrid':
 						from resources.lib.debrid.realdebrid import RealDebrid as debrid_function
 					elif debrid_provider == 'Premiumize.me':

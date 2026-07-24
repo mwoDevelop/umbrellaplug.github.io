@@ -44,7 +44,7 @@ def classify_response(response):
 class RDTransportPolicy:
 	def __init__(
 		self,
-		min_interval=0.25,
+		min_interval=1.0,
 		max_retry_after=30.0,
 		fallback_backoff=1.0,
 		jitter=(0.25, 0.75),

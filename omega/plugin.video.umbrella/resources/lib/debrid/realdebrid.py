@@ -16,6 +16,7 @@ from resources.lib.modules import control
 from resources.lib.modules import log_utils
 from resources.lib.modules import string_tools
 from resources.lib.modules.source_utils import supported_video_extensions
+from resources.lib.downstream.rd_transport_policy import classify_response, rd_transport
 
 getLS = control.lang
 getSetting = control.setting
@@ -69,6 +70,7 @@ class RealDebrid:
 		self.server_notifications = getSetting('realdebrid.server.notifications') == 'true'
 		self.store_to_cloud = getSetting('realdebrid.saveToCloud') == 'true'
 		self.highlightColor = control.setting('highlight.color')
+		self.last_error = None
 
 	def _get(self, url, fail_check=False, token_ck=False):
 		response = None
@@ -84,7 +86,8 @@ class RealDebrid:
 				url += "?auth_token=%s" % self.token
 			else:
 				url += "&auth_token=%s" % self.token
-			response = session.get(url, timeout=45) # cache checkiing of show packs results in random timeout at 30
+			response = rd_transport.request(session, 'GET', url, timeout=45) # cache checkiing of show packs results in random timeout at 30
+			self.last_error = classify_response(response)
 			if 'Temporarily Down For Maintenance' in response.text:
 				if self.server_notifications and not control.homeWindow.getProperty('umbrella.preResolving'): control.notification(message='Real-Debrid Temporarily Down For Maintenance', icon=rd_icon)
 				log_utils.log('Real-Debrid Temporarily Down For Maintenance', level=log_utils.LOGWARNING)
@@ -115,7 +118,8 @@ class RealDebrid:
 				url += "?auth_token=%s" % self.token
 			else:
 				url += "&auth_token=%s" % self.token
-			response = session.post(url, data=data, timeout=15)
+			response = rd_transport.request(session, 'POST', url, data=data, timeout=15)
+			self.last_error = classify_response(response)
 			if '[204]' in str(response): return None
 			if 'Temporarily Down For Maintenance' in response.text:
 				if self.server_notifications and not control.homeWindow.getProperty('umbrella.preResolving'): control.notification(message='Real-Debrid Temporarily Down For Maintenance', icon=rd_icon)
@@ -127,6 +131,8 @@ class RealDebrid:
 				response = self._post(original_url, data)
 			elif 'error' in response:
 				message = response.get('error')
+				# Keep the public return contract while exposing structured
+				# downstream diagnostics through ``last_error``.
 				if message in ('action_already_done', 'infringing_file', 'parameter_missing', 'too_many_requests'): return None
 				if self.server_notifications and not control.homeWindow.getProperty('umbrella.preResolving'): control.notification(message=message, icon=rd_icon)
 				log_utils.log('Real-Debrid Error:  %s' % message, log_utils.LOGWARNING)
@@ -403,6 +409,7 @@ class RealDebrid:
 				extensions = supported_video_extensions()
 				extras_filtering_list = extras_filter()
 				info_hash = info_hash.lower()
+				title = title or ''
 				compare_title = re.sub(r'[^A-Za-z0-9-]+', '.', title.replace('\'', '').replace('&', 'and').replace('%', '.percent')).lower()
 				elapsed_time, transfer_finished = 0, False
 				self.rd_check_max()

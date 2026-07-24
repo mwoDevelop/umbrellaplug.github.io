@@ -4,6 +4,11 @@ from threading import Lock
 from time import monotonic
 
 
+def normalized_metadata(value):
+	"""Return mapping-like resolver metadata without leaking None downstream."""
+	return value if isinstance(value, dict) else {}
+
+
 def source_key(item, season=None, episode=None):
 	hash_value = str(item.get('hash') or '').lower()
 	url = str(item.get('url') or '')

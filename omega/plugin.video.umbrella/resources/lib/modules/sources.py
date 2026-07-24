@@ -23,6 +23,7 @@ from resources.lib.internal_scrapers import internalSources
 from resources.lib.downstream.resolver_policy import (
 	ResolutionCoordinator,
 	infringing_cache,
+	normalized_metadata,
 	source_key,
 	unique_source_queue,
 )
@@ -68,6 +69,7 @@ class Sources:
 		self.isHidden = getSetting('progress.dialog') == '4'
 		self.useTitleSubs = getSetting('sources.useTitleSubs') == 'true'
 		self._resolve_coordinator = ResolutionCoordinator()
+		self.url = None
 
 	def play(self, title, year, imdb, tmdb, tvdb, season, episode, tvshowtitle, premiered, meta, select, rescrape=None):
 		if not self.prem_providers:
@@ -433,6 +435,7 @@ class Sources:
 			except: pass
 			try: meta = jsloads(meta)
 			except: pass
+			meta = normalized_metadata(meta)
 			try:
 				chosen_source = jsloads(chosen_source)
 				source_index = items.index(chosen_source[0])
@@ -1403,13 +1406,15 @@ class Sources:
 			homeWindow.clearProperty('umbrella.window_keep_alive')
 			progressDialog = control.progressDialogBG
 			progressDialog.create(header, '')
+		meta = normalized_metadata(self.meta)
+		url = None
 		for i in range(len(items)):
 			try:
 				src_provider = items[i]['debrid'] if items[i].get('debrid') else ('%s - %s' % (items[i]['source'], items[i]['provider']))
 				if getSetting('progress.dialog') == '2':
 					resolveInfo = items[i]['info'].replace('/',' ')
-					if self.meta.get('plot'):
-						plotLabel = '[COLOR %s]%s[/COLOR][CR][CR]' % (getSetting('sources.highlight.color'), self.meta.get('plot'))
+					if meta.get('plot'):
+						plotLabel = '[COLOR %s]%s[/COLOR][CR][CR]' % (getSetting('sources.highlight.color'), meta.get('plot'))
 					else:
 						plotLabel = ''
 					label = plotLabel + '[B][COLOR %s]%s[CR]%s[CR]%s[CR]%s[/COLOR][/B]' % (self.highlight_color, src_provider.upper(), items[i]['provider'].upper(),items[i]['quality'].upper(), resolveInfo)
@@ -1424,7 +1429,8 @@ class Sources:
 					if control.monitor.abortRequested(): return sysexit()
 					url = self.sourcesResolve(items[i])
 					# if not any(x in url.lower() for x in video_extensions):
-					if not any(x in self.url.lower() for x in video_extensions) and 'plex.direct:' not in self.url and 'torbox' not in self.url and 'tb-cdn' not in self.url and 'plugin://plugin.video.composite_for_plex' not in self.url:
+					resolved = url or ''
+					if not any(x in resolved.lower() for x in video_extensions) and 'plex.direct:' not in resolved and 'torbox' not in resolved and 'tb-cdn' not in resolved and 'plugin://plugin.video.composite_for_plex' not in resolved:
 						log_utils.log('Playback not supported for (sourcesAutoPlay()): %s' % url, level=log_utils.LOGWARNING)
 						continue
 					if url:
@@ -1629,7 +1635,7 @@ class Sources:
 			homeWindow.clearProperty('umbrella.window_keep_alive')
 			control.sleep(200)
 			control.hide()
-			if self.url == 'close://': control.notification(message=32400)
+			if getattr(self, 'url', None) == 'close://': control.notification(message=32400)
 			elif self.retryallsources:
 				if self.rescrapeAll == 'true':
 					control.notification(message=32401)

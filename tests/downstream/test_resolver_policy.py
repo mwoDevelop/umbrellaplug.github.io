@@ -1,6 +1,7 @@
 from resources.lib.downstream.resolver_policy import (
 	NegativeCache,
 	ResolutionCoordinator,
+	normalized_metadata,
 	source_key,
 	unique_source_queue,
 )
@@ -45,3 +46,10 @@ def test_stale_generation_cannot_publish():
 	assert not coordinator.complete(old, 'stale.mp4')
 	assert coordinator.complete(current, 'current.mp4')
 	assert coordinator.result(current) == 'current.mp4'
+
+
+def test_missing_metadata_is_normalized_without_copying_valid_mapping():
+	meta = {'title': 'Big Buck Bunny'}
+	assert normalized_metadata(meta) is meta
+	assert normalized_metadata(None) == {}
+	assert normalized_metadata('invalid') == {}

@@ -31,3 +31,6 @@ patches:
   - topic: "fix: sanitize external provider context"
     commit: "abefa895bdfb557eecb7631b43c58e6b02bb7eb3"
     patch_id: "3508e57592dd5fd8ed5c05425ebd19e107b60da9"
+  - topic: "test: cover Real-Debrid source outcomes end to end"
+    commit: "4505ebb6d0196de365e527665a41fd3f2f46e292"
+    patch_id: "13fc1d2a99578bc5c149298bfccb6cd15379e93c"

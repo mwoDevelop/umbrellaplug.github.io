@@ -1,0 +1,61 @@
+name: sync Umbrella upstream
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 3 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: umbrella-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Fetch and rebase the downstream patch stack
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/umbrellaplug/umbrellaplug.github.io.git
+          git fetch upstream master
+          current_base="$(git merge-base HEAD upstream/master)"
+          upstream_sha="$(git rev-parse upstream/master)"
+          if [ "$current_base" = "$upstream_sha" ]; then
+            echo "Already based on $upstream_sha"
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor "$current_base" upstream/master; then
+            gh issue create \
+              --title "Umbrella upstream rewrote master" \
+              --body "Automated sync stopped. Previous base: $current_base. New head: $upstream_sha."
+            exit 1
+          fi
+          branch="sync/upstream-${upstream_sha:0:12}"
+          git switch -c "$branch"
+          if ! git rebase upstream/master; then
+            git rebase --abort
+            gh issue create \
+              --title "Umbrella upstream sync conflict ${upstream_sha:0:12}" \
+              --body "The downstream patch stack conflicts with upstream $upstream_sha and requires manual review."
+            exit 1
+          fi
+          git push --force-with-lease origin "$branch"
+          if ! gh pr list --head "$branch" --state open --json number --jq 'length' | grep -qx 1; then
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "Sync Umbrella upstream ${upstream_sha:0:12}" \
+              --body "Automated rebase of the isolated downstream patch stack onto upstream commit \`$upstream_sha\`. Tests must pass before merge."
+          fi

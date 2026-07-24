@@ -5,7 +5,7 @@ from resources.lib.downstream.addon_policy import (
 
 
 def test_downstream_revision_compares_as_its_upstream_base():
-	assert upstream_version_check('6.7.81.4') == ('6.7.81', OFFICIAL_RELEASE_INDEX)
+	assert upstream_version_check('6.7.81.5') == ('6.7.81', OFFICIAL_RELEASE_INDEX)
 
 
 def test_upstream_version_is_unchanged():

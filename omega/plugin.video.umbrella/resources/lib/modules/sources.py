@@ -24,9 +24,10 @@ from resources.lib.downstream.resolver_policy import (
 	ResolutionCoordinator,
 	infringing_cache,
 	normalized_metadata,
-	source_key,
+	resolve_real_debrid_source,
 	unique_source_queue,
 )
+from resources.lib.downstream.provider_context_policy import provider_context
 
 homeWindow = control.homeWindow
 playerWindow = control.playerWindow
@@ -596,7 +597,7 @@ class Sources:
 					alias = {'title': tvshowtitle + ' ' + i, 'country': i.lower()}
 					if not alias in aliases: aliases.append(alias)
 			data = {'title': title, 'year': year, 'imdb': imdb, 'tvdb': tvdb, 'season': season, 'episode': episode, 'tvshowtitle': tvshowtitle, 'aliases': aliases, 'premiered': premiered}
-			if self.debrid_service: data.update({'debrid_service': self.debrid_service, 'debrid_token': self.debrid_token})
+			data = provider_context(data, self.debrid_service)
 			for i in scraperDict:
 				name, pack = i[0].upper(), i[2]
 				if pack == 'season': name = '%s (season pack)' % name
@@ -696,7 +697,7 @@ class Sources:
 				try: aliases.extend([i for i in trakt_aliases if not i in aliases]) # combine TMDb and Trakt aliases
 				except: pass
 				data = {'title': title, 'aliases': aliases, 'year': year, 'imdb': imdb}
-				if self.debrid_service: data.update({'debrid_service': self.debrid_service, 'debrid_token': self.debrid_token})
+				data = provider_context(data, self.debrid_service)
 				for i in sourceDict: threads_append(Thread(target=self.getMovieSource, args=(imdb, data, i[0], i[1]), name=i[0].upper()))
 			else:
 				scraperDict = [(i[0], i[1], '') for i in sourceDict] if ((not self.dev_mode) or (not self.dev_disable_single)) else []
@@ -715,7 +716,7 @@ class Sources:
 						if not alias in aliases: aliases.append(alias)
 				aliases = aliases_check(tvshowtitle, aliases)
 				data = {'title': title, 'year': year, 'imdb': imdb, 'tvdb': tvdb, 'season': season, 'episode': episode, 'tvshowtitle': tvshowtitle, 'aliases': aliases, 'premiered': premiered}
-				if self.debrid_service: data.update({'debrid_service': self.debrid_service, 'debrid_token': self.debrid_token})
+				data = provider_context(data, self.debrid_service)
 				for i in scraperDict:
 					name, pack = i[0].upper(), i[2]
 					if pack == 'season': name = '%s (season pack)' % name
@@ -1480,13 +1481,9 @@ class Sources:
 					else: return
 					
 					if debrid_provider == 'Real-Debrid':
-						cache_key = source_key(item, season, episode)
-						if infringing_cache.contains(cache_key):
-							return None
-						debrid_client = debrid_function()
-						url = debrid_client.resolve_magnet(url, item['hash'], season, episode, title)
-						if getattr(debrid_client.last_error, 'error_code', 0) == 35:
-							infringing_cache.add(cache_key)
+						url = resolve_real_debrid_source(
+							item, season, episode, title, debrid_function, infringing_cache
+						)
 					else:
 						url = debrid_function().resolve_magnet(url, item['hash'], season, episode, title)
 					return _publish(url)

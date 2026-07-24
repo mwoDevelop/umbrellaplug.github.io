@@ -7,6 +7,7 @@ The Open/Closed boundary is deliberate:
 - new policy and tests live under `resources/lib/downstream/` and
   `tests/downstream/`;
 - only `sources.py` and `realdebrid.py` contain functional integration hooks;
+- external providers receive an allowlisted context without debrid credentials;
 - `addon.xml` carries the downstream version and MwoScrapers dependency;
 - upstream synchronization rebases the small patch stack and never publishes
   automatically.

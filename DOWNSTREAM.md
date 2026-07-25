@@ -9,8 +9,8 @@ The Open/Closed boundary is deliberate:
 - only `sources.py` and `realdebrid.py` contain functional integration hooks;
 - external providers receive an allowlisted context without debrid credentials;
 - `addon.xml` carries the downstream version and MwoScrapers dependency;
-- upstream synchronization rebases the small patch stack and never publishes
-  automatically.
+- upstream discovery is centralized in `mwoDevelop/kodi`; this repository does
+  not rebase or push upstream changes directly.
 
 ## Validate
 
@@ -19,6 +19,7 @@ python3 -m venv .venv-downstream
 . .venv-downstream/bin/activate
 python -m pip install pytest
 pytest
+python tools/rebuild_downstream.py --check
 python -m py_compile \
   omega/plugin.video.umbrella/resources/lib/modules/sources.py \
   omega/plugin.video.umbrella/resources/lib/debrid/realdebrid.py \

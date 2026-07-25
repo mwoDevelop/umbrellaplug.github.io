@@ -1,8 +1,19 @@
-schema: 1
+schema: 2
+adapter_version: 1
 upstream:
   repository: "umbrellaplug/umbrellaplug.github.io"
   branch: "master"
   base: "fb1fa4fe7fdab82091a6502da3f3610df2dcf71f"
+protected_paths:
+  - ".github"
+  - ".gitmodules"
+mechanical_paths:
+  - "omega/plugin.video.umbrella/addon.xml"
+repository_policy_paths:
+  - ".github"
+  - ".gitignore"
+  - "DOWNSTREAM.md"
+  - "downstream-patches.yml"
 patches:
   - topic: "test: add downstream resolver policy coverage"
     commit: "8e2bf791ff362dd5dbec4b0136b5f0bc2699b169"

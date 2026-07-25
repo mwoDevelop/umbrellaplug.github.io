@@ -34,3 +34,6 @@ patches:
   - topic: "test: cover Real-Debrid source outcomes end to end"
     commit: "4505ebb6d0196de365e527665a41fd3f2f46e292"
     patch_id: "13fc1d2a99578bc5c149298bfccb6cd15379e93c"
+  - topic: "release: brand downstream Umbrella 6.7.81.8 in Kodi"
+    commit: "812cec6146737ded7a9629fcbb1751ebbaf3dee9"
+    patch_id: "4b6af53317d9dffbe28a39a26ec4b754f831f09d"

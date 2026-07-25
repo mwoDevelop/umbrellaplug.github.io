@@ -37,3 +37,6 @@ patches:
   - topic: "release: brand downstream Umbrella 6.7.81.8 in Kodi"
     commit: "812cec6146737ded7a9629fcbb1751ebbaf3dee9"
     patch_id: "4b6af53317d9dffbe28a39a26ec4b754f831f09d"
+  - topic: "fix: avoid transitive YouTube install blocker"
+    commit: "ada10e115fdaf5dc5b72431de9666b463089af59"
+    patch_id: "331569d7327a27bb5e3dbe9cc63246452353e34c"

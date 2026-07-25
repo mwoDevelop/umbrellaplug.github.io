@@ -1,9 +1,8 @@
-<addon id="plugin.video.umbrella" name="Umbrella (mwoDevelop)" provider-name="Umbrella + mwoDevelop" version="6.7.81.8">
+<addon id="plugin.video.umbrella" name="Umbrella (mwoDevelop)" provider-name="Umbrella + mwoDevelop" version="6.7.81.9">
 	<requires>
 		<import addon="xbmc.python" version="3.0.0" />
 		<import addon="script.module.requests" />
 		<import addon="script.module.mwoscrapers" version="0.1.0" />
-		<import addon="plugin.video.youtube" optional="true" />
 	</requires>
 	<extension point="xbmc.python.pluginsource" library="umbrella.py">
 		<provides>video</provides>

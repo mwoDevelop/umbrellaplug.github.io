@@ -1,7 +1,22 @@
+from pathlib import Path
+from xml.etree import ElementTree
+
 from resources.lib.downstream.addon_policy import (
 	OFFICIAL_RELEASE_INDEX,
 	upstream_version_check,
 )
+
+ADDON_XML = (
+	Path(__file__).parents[2] / 'omega' / 'plugin.video.umbrella' / 'addon.xml'
+)
+
+
+def test_downstream_addon_identity_is_visible_in_kodi():
+	addon = ElementTree.parse(ADDON_XML).getroot()
+
+	assert addon.attrib['id'] == 'plugin.video.umbrella'
+	assert addon.attrib['name'] == 'Umbrella (mwoDevelop)'
+	assert addon.attrib['version'] == '6.7.81.8'
 
 
 def test_downstream_revision_compares_as_its_upstream_base():

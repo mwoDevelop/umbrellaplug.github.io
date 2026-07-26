@@ -60,3 +60,6 @@ patches:
   - topic: "fix: support downstream repository and optional subtitles"
     commit: "0a3398cd5e1f7604934ed5495b9676ad9ed36199"
     patch_id: "57c07e8f608a773e3065961396419216a1f2876a"
+  - topic: "release: downstream Umbrella 6.7.81.10"
+    commit: "8544d6ec9aaec322039d55a0e31971a06970cd45"
+    patch_id: "bda50646c90ce9d11dfc5d4a27219726f9627a61"

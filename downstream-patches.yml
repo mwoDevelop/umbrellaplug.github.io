@@ -72,3 +72,6 @@ patches:
   - topic: "fix: close source progress after resolver failure"
     commit: "be497fa80a789d582c478dca7fad4863a55e3ae1"
     patch_id: "3edf37df0537e2bebec11e15b61423bbedca9cb2"
+  - topic: "release: downstream Umbrella 6.7.81.12"
+    commit: "a8d11dc8c3e339c78dcb0f2e1c8a0f78e4aebdff"
+    patch_id: "b722f4f3c7cb1075d12d4222dcf02f6668731794"

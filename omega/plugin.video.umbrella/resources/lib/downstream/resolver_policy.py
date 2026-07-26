@@ -30,6 +30,31 @@ def unique_source_queue(items, season=None, episode=None, limit=8):
 	return result
 
 
+def autoplay_source_queue(items, use_only_one=False, limit=12):
+	"""Bound autoplay attempts while sampling every available quality tier."""
+	if use_only_one:
+		return unique_source_queue(items, limit=1)
+	buckets, quality_order = {}, []
+	for item in unique_source_queue(items, limit=len(items)):
+		quality = str(item.get('quality') or 'unknown')
+		if quality not in buckets:
+			buckets[quality] = []
+			quality_order.append(quality)
+		buckets[quality].append(item)
+	result = []
+	while len(result) < limit:
+		added = False
+		for quality in quality_order:
+			if buckets[quality]:
+				result.append(buckets[quality].pop(0))
+				added = True
+				if len(result) >= limit:
+					break
+		if not added:
+			break
+	return result
+
+
 class NegativeCache:
 	def __init__(self, ttl=3600):
 		self.ttl = ttl
@@ -93,10 +118,13 @@ def resolve_real_debrid_source(
 	title,
 	client_factory,
 	negative_cache=infringing_cache,
+	failure_callback=None,
 ):
 	"""Resolve one RD source while enforcing the session negative cache."""
 	cache_key = source_key(item, season, episode)
 	if negative_cache.contains(cache_key):
+		if failure_callback:
+			failure_callback(35, 'infringing_file_cached')
 		return None
 	client = client_factory()
 	resolved = client.resolve_magnet(
@@ -106,6 +134,11 @@ def resolve_real_debrid_source(
 		episode,
 		title,
 	)
-	if getattr(getattr(client, 'last_error', None), 'error_code', 0) == 35:
+	last_error = getattr(client, 'last_error', None)
+	error_code = int(getattr(last_error, 'error_code', 0) or 0)
+	error = str(getattr(last_error, 'error', '') or '')
+	if error_code == 35:
 		negative_cache.add(cache_key)
+	if not resolved and failure_callback:
+		failure_callback(error_code, error or 'no_playable_url')
 	return resolved

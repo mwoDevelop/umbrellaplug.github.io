@@ -78,3 +78,6 @@ patches:
   - topic: "fix: bound autoplay resolver attempts"
     commit: "8cbe318c209a36c3139c64e78002b5a20faf5e55"
     patch_id: "fe65660688aec3106520d6a42097f842078c1c9f"
+  - topic: "release: downstream Umbrella 6.7.81.13"
+    commit: "2963053cb56465df235335aaeaec527cc79603ad"
+    patch_id: "16e788067b8f93a74b3b316fb8ed541716363dfa"

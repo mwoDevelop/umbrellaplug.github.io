@@ -108,6 +108,41 @@ class ResolutionCoordinator:
 			self._results.pop(generation, None)
 
 
+def bounded_resolve(
+	resolve,
+	coordinator,
+	thread_factory,
+	sleep,
+	timeout_ms=8000,
+	poll_ms=200,
+):
+	"""Resolve off-thread and reject results that arrive after the deadline."""
+	generation = coordinator.begin()
+	failure = []
+
+	def _run():
+		try:
+			value = resolve()
+		except Exception as error:
+			failure.append(error)
+			value = None
+		coordinator.complete(generation, value)
+
+	worker = thread_factory(target=_run)
+	worker.start()
+	polls = max(1, int(timeout_ms / poll_ms))
+	for _index in range(polls):
+		if not worker.is_alive():
+			status = 'error' if failure else 'complete'
+			return coordinator.result(generation), status
+		sleep(poll_ms)
+	if not worker.is_alive():
+		status = 'error' if failure else 'complete'
+		return coordinator.result(generation), status
+	coordinator.invalidate(generation)
+	return None, 'timeout'
+
+
 infringing_cache = NegativeCache()
 
 

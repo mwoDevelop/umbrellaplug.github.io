@@ -66,3 +66,6 @@ patches:
   - topic: "fix: tolerate providers without pack capability"
     commit: "e012d0fc3988e0a4531545c2e834cc7e5fca9049"
     patch_id: "252c72d1c3f1dbeb14fdab304160f18cb57881f1"
+  - topic: "release: downstream Umbrella 6.7.81.11"
+    commit: "85af3d234781d4d1f4ad01dea16843bb98001782"
+    patch_id: "e856bbfbf831c79f4bc0ce50cfaa7cd5e6db3fc9"

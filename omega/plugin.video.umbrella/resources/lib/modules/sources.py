@@ -2041,19 +2041,16 @@ class Sources:
 		return filter
 
 	def getWindowProgress(self, title, meta):
+		from resources.lib.downstream.source_progress_policy import start_source_progress
 		from resources.lib.windows.source_progress import WindowProgress
 		window = WindowProgress('source_progress.xml', control.addonPath(control.addonId()), title=title, meta=meta)
-		Thread(target=window.run).start()
-		return window
+		return start_source_progress(window, homeWindow, Thread)
 
 	def window_monitor(self, window=None):
 		if window is None: return
+		from resources.lib.downstream.source_progress_policy import wait_for_source_progress_release
 		self.window = window
-		homeWindow.setProperty('umbrella.window_keep_alive', 'true')
-		while homeWindow.getProperty('umbrella.window_keep_alive') == 'true': control.sleep(200)
-		homeWindow.clearProperty('umbrella.window_keep_alive')
-		try: self.window.close()
-		except: pass
+		wait_for_source_progress_release(window, homeWindow, control.sleep)
 		self.window = None
 
 	def get_internal_scrapers(self):

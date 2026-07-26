@@ -23,6 +23,7 @@ from resources.lib.internal_scrapers import internalSources
 from resources.lib.downstream.resolver_policy import (
 	ResolutionCoordinator,
 	autoplay_source_queue,
+	bounded_resolve,
 	infringing_cache,
 	normalized_metadata,
 	resolve_real_debrid_source,
@@ -1434,7 +1435,24 @@ class Sources:
 				except: progressDialog.update(int((100 / float(len(items))) * i), '[COLOR %s]Resolving...[/COLOR]%s' % (self.highlight_color, items[i]['name']))
 				try:
 					if control.monitor.abortRequested(): return sysexit()
-					url = self.sourcesResolve(items[i])
+					url, resolve_status = bounded_resolve(
+						lambda item=items[i]: self.sourcesResolve(item, publish=False),
+						self._resolve_coordinator,
+						Thread,
+						control.sleep,
+					)
+					self.url = url
+					if resolve_status == 'timeout':
+						log_utils.log(
+							'Autoplay resolver attempt exceeded 8 seconds; stopping this action without starting another attempt.',
+							level=log_utils.LOGWARNING,
+						)
+						break
+					if resolve_status == 'error':
+						log_utils.log(
+							'Autoplay resolver attempt failed in its bounded worker.',
+							level=log_utils.LOGWARNING,
+						)
 					# if not any(x in url.lower() for x in video_extensions):
 					resolved = url or ''
 					if not any(x in resolved.lower() for x in video_extensions) and 'plex.direct:' not in resolved and 'torbox' not in resolved and 'tb-cdn' not in resolved and 'plugin://plugin.video.composite_for_plex' not in resolved:

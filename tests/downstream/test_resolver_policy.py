@@ -2,6 +2,7 @@ from resources.lib.downstream.resolver_policy import (
 	NegativeCache,
 	ResolutionCoordinator,
 	autoplay_source_queue,
+	bounded_resolve,
 	normalized_metadata,
 	resolve_real_debrid_source,
 	source_key,
@@ -72,6 +73,59 @@ def test_stale_generation_cannot_publish():
 	assert not coordinator.complete(old, 'stale.mp4')
 	assert coordinator.complete(current, 'current.mp4')
 	assert coordinator.result(current) == 'current.mp4'
+
+
+class ImmediateThread:
+	def __init__(self, target):
+		self.target = target
+		self.alive = False
+
+	def start(self):
+		self.alive = True
+		self.target()
+		self.alive = False
+
+	def is_alive(self):
+		return self.alive
+
+
+class StuckThread:
+	def __init__(self, target):
+		self.target = target
+
+	def start(self):
+		pass
+
+	def is_alive(self):
+		return True
+
+
+def test_bounded_resolve_returns_immediate_result():
+	result, status = bounded_resolve(
+		lambda: 'https://example.invalid/sintel.mp4',
+		ResolutionCoordinator(),
+		ImmediateThread,
+		lambda _milliseconds: None,
+	)
+
+	assert status == 'complete'
+	assert result == 'https://example.invalid/sintel.mp4'
+
+
+def test_bounded_resolve_invalidates_late_worker():
+	coordinator = ResolutionCoordinator()
+	result, status = bounded_resolve(
+		lambda: 'late.mp4',
+		coordinator,
+		StuckThread,
+		lambda _milliseconds: None,
+		timeout_ms=400,
+		poll_ms=200,
+	)
+
+	assert status == 'timeout'
+	assert result is None
+	assert coordinator.result(1) is None
 
 
 def test_missing_metadata_is_normalized_without_copying_valid_mapping():

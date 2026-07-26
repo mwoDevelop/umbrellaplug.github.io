@@ -22,6 +22,7 @@ from resources.lib.cloud_scrapers import cloudSources
 from resources.lib.internal_scrapers import internalSources
 from resources.lib.downstream.resolver_policy import (
 	ResolutionCoordinator,
+	autoplay_source_queue,
 	infringing_cache,
 	normalized_metadata,
 	resolve_real_debrid_source,
@@ -1385,6 +1386,10 @@ class Sources:
 		#control.hide()
 		#control.sleep(200)
 		if getSetting('autoplay.sd') == 'true': items = [i for i in items if not i['quality'] in ('4K', '1080p', '720p')]
+		items = autoplay_source_queue(
+			items,
+			use_only_one=getSetting('sources.useonlyone') == 'true',
+		)
 		header = homeWindow.getProperty(self.labelProperty) + ': Resolving...'
 		try:
 			poster = self.meta.get('poster')
@@ -1481,8 +1486,21 @@ class Sources:
 					else: return
 					
 					if debrid_provider == 'Real-Debrid':
+						def _log_rd_failure(error_code, reason):
+							safe_reason = re.sub(r'[^a-zA-Z0-9_.-]+', '_', reason)[:80]
+							log_utils.log(
+								'Real-Debrid resolver rejected source: error_code=%s reason=%s'
+								% (error_code, safe_reason),
+								level=log_utils.LOGWARNING,
+							)
 						url = resolve_real_debrid_source(
-							item, season, episode, title, debrid_function, infringing_cache
+							item,
+							season,
+							episode,
+							title,
+							debrid_function,
+							infringing_cache,
+							failure_callback=_log_rd_failure,
 						)
 					else:
 						url = debrid_function().resolve_magnet(url, item['hash'], season, episode, title)

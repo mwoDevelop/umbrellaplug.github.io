@@ -1,6 +1,7 @@
 from resources.lib.downstream.resolver_policy import (
 	NegativeCache,
 	ResolutionCoordinator,
+	autoplay_source_queue,
 	normalized_metadata,
 	resolve_real_debrid_source,
 	source_key,
@@ -32,6 +33,25 @@ def test_queue_deduplicates_first_source_and_preserves_order():
 def test_queue_has_bounded_attempt_count():
 	items = [_item(('%040x' % index)) for index in range(20)]
 	assert len(unique_source_queue(items)) == 8
+
+
+def test_autoplay_queue_samples_quality_tiers_and_is_bounded():
+	items = []
+	for quality in ('1080p', '720p', 'SD', '4K'):
+		for _index in range(5):
+			item = _item(('%040x' % (len(items) + 1)))
+			item['quality'] = quality
+			items.append(item)
+	result = autoplay_source_queue(items, limit=8)
+	assert [item['quality'] for item in result] == [
+		'1080p', '720p', 'SD', '4K',
+		'1080p', '720p', 'SD', '4K',
+	]
+
+
+def test_autoplay_queue_honors_only_one_source():
+	items = [_item('%040x' % index) for index in range(4)]
+	assert autoplay_source_queue(items, use_only_one=True) == items[:1]
 
 
 def test_negative_cache_expires(monkeypatch):
@@ -111,6 +131,7 @@ def test_source_to_transport_retries_34_and_returns_success(monkeypatch):
 
 def test_source_to_transport_caches_35_for_session():
 	factory_calls = []
+	failures = []
 
 	class Client:
 		last_error = RDError(error_code=35, error='infringing_file')
@@ -123,6 +144,16 @@ def test_source_to_transport_caches_35_for_session():
 
 	cache = NegativeCache()
 	item = _item('E' * 40)
-	assert resolve_real_debrid_source(item, None, None, 'Sintel', Client, cache) is None
-	assert resolve_real_debrid_source(item, None, None, 'Sintel', Client, cache) is None
+	assert resolve_real_debrid_source(
+		item, None, None, 'Sintel', Client, cache,
+		failure_callback=lambda code, reason: failures.append((code, reason)),
+	) is None
+	assert resolve_real_debrid_source(
+		item, None, None, 'Sintel', Client, cache,
+		failure_callback=lambda code, reason: failures.append((code, reason)),
+	) is None
 	assert len(factory_calls) == 1
+	assert failures == [
+		(35, 'infringing_file'),
+		(35, 'infringing_file_cached'),
+	]

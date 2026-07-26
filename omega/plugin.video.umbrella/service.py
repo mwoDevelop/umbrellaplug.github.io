@@ -292,17 +292,8 @@ try:
 		control.setSetting('scrobble', _scrobble_map[_scrobble_val]) # sync display label with backing integer on upgrade
 	kodiVersion = control.getKodiVersion(full=True)
 	addonVersion = control.addon('plugin.video.umbrella').getAddonInfo('version')
-	if len(str(control.getUmbrellaVersion())) > 6:
-		repoVersion = control.addon('repository.umbrellakodi').getAddonInfo('version')
-		repoName = 'repository.umbrellakodi'
-		testUmbrella = True
-	else:
-		try:
-			repoVersion = control.addon('repository.umbrella').getAddonInfo('version')
-			repoName = 'repository.umbrella'
-		except Exception:
-			repoVersion = 'unknown'
-			repoName = 'Unknown Repo'
+	from resources.lib.downstream.addon_policy import installed_repository
+	repoName, repoVersion = installed_repository(control.addon)
 
 	log_utils.log('########   CURRENT Umbrella VERSIONS REPORT   ########', level=LOGINFO)
 	if testUmbrella == True:

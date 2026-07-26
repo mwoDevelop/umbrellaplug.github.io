@@ -33,6 +33,11 @@ def classify_response(response):
 		payload = response.json()
 	except (TypeError, ValueError):
 		payload = {}
+	# Successful Real-Debrid collection endpoints legitimately return a list.
+	# Error metadata exists only on mapping responses, so collection/scalar
+	# payloads must be treated as a successful response without error fields.
+	if not isinstance(payload, dict):
+		payload = {}
 	return RDError(
 		http_status=int(getattr(response, 'status_code', 0) or 0),
 		error_code=int(payload.get('error_code') or 0),

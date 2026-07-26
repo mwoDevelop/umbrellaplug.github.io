@@ -3,6 +3,7 @@ from xml.etree import ElementTree
 
 from resources.lib.downstream.addon_policy import (
 	OFFICIAL_RELEASE_INDEX,
+	installed_repository,
 	upstream_version_check,
 )
 
@@ -35,3 +36,33 @@ def test_downstream_revision_compares_as_its_upstream_base():
 
 def test_upstream_version_is_unchanged():
 	assert upstream_version_check('6.7.81') == ('6.7.81', OFFICIAL_RELEASE_INDEX)
+
+
+def test_downstream_repository_is_preferred_without_upstream_test_heuristic():
+	class Addon:
+		def __init__(self, version):
+			self.version = version
+
+		def getAddonInfo(self, key):
+			return self.version if key == 'version' else ''
+
+	def addon_factory(addon_id):
+		versions = {
+			'repository.mwodevelop': '1.0.0',
+			'repository.umbrellakodi': '2.2.6',
+		}
+		if addon_id not in versions:
+			raise RuntimeError('not installed')
+		return Addon(versions[addon_id])
+
+	assert installed_repository(addon_factory) == (
+		'repository.mwodevelop',
+		'1.0.0',
+	)
+
+
+def test_missing_repository_has_stable_fallback():
+	def missing(_addon_id):
+		raise RuntimeError('not installed')
+
+	assert installed_repository(missing) == ('Unknown Repo', 'unknown')

@@ -9,6 +9,11 @@ OFFICIAL_RELEASE_INDEX = (
 	'https://raw.githubusercontent.com/umbrellaplug/'
 	'umbrellaplug.github.io/master/matrix/plugin.video.umbrella/addon.xml'
 )
+REPOSITORY_IDS = (
+	'repository.mwodevelop',
+	'repository.umbrellakodi',
+	'repository.umbrella',
+)
 
 
 def upstream_version_check(local_version):
@@ -22,3 +27,15 @@ def upstream_version_check(local_version):
 	"""
 	parts = str(local_version).split('.')
 	return '.'.join(parts[:3]), OFFICIAL_RELEASE_INDEX
+
+
+def installed_repository(addon_factory):
+	"""Return the first installed downstream/upstream Umbrella repository."""
+	for addon_id in REPOSITORY_IDS:
+		try:
+			version = addon_factory(addon_id).getAddonInfo('version')
+			if version:
+				return addon_id, version
+		except Exception:
+			continue
+	return 'Unknown Repo', 'unknown'

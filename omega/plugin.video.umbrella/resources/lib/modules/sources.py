@@ -29,6 +29,7 @@ from resources.lib.downstream.resolver_policy import (
 	unique_source_queue,
 )
 from resources.lib.downstream.provider_context_policy import provider_context
+from resources.lib.downstream.provider_capability_policy import provider_pack_sources
 
 homeWindow = control.homeWindow
 playerWindow = control.playerWindow
@@ -1017,7 +1018,7 @@ class Sources:
 		elif pack == 'season': # seasonPacks scraper call
 			try:
 				sources = []
-				sources = call().sources_packs(data, self.hostprDict, bypass_filter=self.dev_disable_season_filter)
+				sources = provider_pack_sources(call(), data, self.hostprDict, bypass_filter=self.dev_disable_season_filter)
 				if sources:
 					dbcur.execute('''INSERT OR REPLACE INTO rel_src Values (?, ?, ?, ?, ?, ?)''', (source, imdb, season,'', repr(sources), datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")))
 					dbcur.connection.commit()
@@ -1028,7 +1029,7 @@ class Sources:
 		elif pack == 'show': # showPacks scraper call
 			try:
 				sources = []
-				sources = call().sources_packs(data, self.hostprDict, search_series=True, total_seasons=self.total_seasons, bypass_filter=self.dev_disable_show_filter)
+				sources = provider_pack_sources(call(), data, self.hostprDict, search_series=True, total_seasons=self.total_seasons, bypass_filter=self.dev_disable_show_filter)
 				if sources:
 					dbcur.execute('''INSERT OR REPLACE INTO rel_src Values (?, ?, ?, ?, ?, ?)''', (source, imdb, '', '', repr(sources), datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")))
 					dbcur.connection.commit()

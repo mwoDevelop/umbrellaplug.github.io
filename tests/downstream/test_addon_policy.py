@@ -17,7 +17,7 @@ def test_downstream_addon_identity_is_visible_in_kodi():
 
 	assert addon.attrib['id'] == 'plugin.video.umbrella'
 	assert addon.attrib['name'] == 'Umbrella (mwoDevelop)'
-	assert addon.attrib['version'] == '6.7.81.13'
+	assert addon.attrib['version'] == '6.7.81.14'
 
 
 def test_optional_youtube_feature_does_not_block_umbrella_installation():

@@ -81,3 +81,6 @@ patches:
   - topic: "release: downstream Umbrella 6.7.81.13"
     commit: "2963053cb56465df235335aaeaec527cc79603ad"
     patch_id: "16e788067b8f93a74b3b316fb8ed541716363dfa"
+  - topic: "fix: tolerate sparse RD file link mappings"
+    commit: "072ea1e4d2b2c99eed55f331adfdda91f1d73ef0"
+    patch_id: "21534b8e9be673ad5f1d64b6db07dad9ded4a37e"

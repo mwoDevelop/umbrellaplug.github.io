@@ -1,4 +1,5 @@
 from resources.lib.downstream.resolver_policy import (
+	AUTOPLAY_RESOLVE_TIMEOUT_MS,
 	NegativeCache,
 	ResolutionCoordinator,
 	autoplay_source_queue,
@@ -110,6 +111,10 @@ def test_bounded_resolve_returns_immediate_result():
 
 	assert status == 'complete'
 	assert result == 'https://example.invalid/sintel.mp4'
+
+
+def test_default_resolve_timeout_allows_vpn_latency():
+	assert AUTOPLAY_RESOLVE_TIMEOUT_MS == 20000
 
 
 def test_bounded_resolve_invalidates_late_worker():

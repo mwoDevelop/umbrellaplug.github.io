@@ -21,6 +21,7 @@ from resources.lib.modules.source_utils import supported_video_extensions, getFi
 from resources.lib.cloud_scrapers import cloudSources
 from resources.lib.internal_scrapers import internalSources
 from resources.lib.downstream.resolver_policy import (
+	AUTOPLAY_RESOLVE_TIMEOUT_MS,
 	ResolutionCoordinator,
 	autoplay_source_queue,
 	bounded_resolve,
@@ -1444,7 +1445,8 @@ class Sources:
 					self.url = url
 					if resolve_status == 'timeout':
 						log_utils.log(
-							'Autoplay resolver attempt exceeded 8 seconds; stopping this action without starting another attempt.',
+							'Autoplay resolver attempt exceeded %s seconds; stopping this action without starting another attempt.'
+							% (AUTOPLAY_RESOLVE_TIMEOUT_MS // 1000),
 							level=log_utils.LOGWARNING,
 						)
 						break

@@ -93,3 +93,6 @@ patches:
   - topic: "release: downstream Umbrella 6.7.81.15"
     commit: "9ca2e4f8d1d5b0990f88b331371218403ad530e3"
     patch_id: "680b8be707dc87a57f52506b6ad0173c6fed7e26"
+  - topic: "fix: preserve service update-check indentation"
+    commit: "ee4c74ca624b6e044353573570cfbed220fba44f"
+    patch_id: "9627a4be2735925fad6ccb98f647cb6b325cb4c7"

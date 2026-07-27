@@ -16,6 +16,7 @@ from resources.lib.modules import control
 from resources.lib.modules import log_utils
 from resources.lib.modules import string_tools
 from resources.lib.modules.source_utils import supported_video_extensions
+from resources.lib.downstream.rd_file_policy import link_for_selected_path
 from resources.lib.downstream.rd_transport_policy import classify_response, rd_transport
 
 getLS = control.lang
@@ -455,8 +456,22 @@ class RealDebrid:
 						if any(x in filename_info for x in extras_filtering_list): continue
 						match, index = True, value[0]; break
 				if match:
-					rd_link = torrent_info['links'][index]
-					file_url = self.unrestrict_link(rd_link)
+					selected_path = selected_files[
+						next(
+							position for position, value in enumerate(selected_files)
+							if value[0] == index
+						)
+					][1]['path']
+					rd_link = link_for_selected_path(
+						torrent_info.get('files', []),
+						torrent_info.get('links', []),
+						selected_path,
+						extensions,
+					)
+					if rd_link:
+						file_url = self.unrestrict_link(rd_link)
+					else:
+						failed_reason = 'RD returned an ambiguous file/link mapping'
 					if file_url and file_url.endswith('rar'):
 						file_url, failed_reason = None, 'RD returned unsupported .rar file --> %s' % file_url
 					try:

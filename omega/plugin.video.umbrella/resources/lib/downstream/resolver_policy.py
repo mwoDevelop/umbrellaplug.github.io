@@ -4,6 +4,9 @@ from threading import Lock
 from time import monotonic
 
 
+AUTOPLAY_RESOLVE_TIMEOUT_MS = 20000
+
+
 def normalized_metadata(value):
 	"""Return mapping-like resolver metadata without leaking None downstream."""
 	return value if isinstance(value, dict) else {}
@@ -113,7 +116,7 @@ def bounded_resolve(
 	coordinator,
 	thread_factory,
 	sleep,
-	timeout_ms=8000,
+	timeout_ms=AUTOPLAY_RESOLVE_TIMEOUT_MS,
 	poll_ms=200,
 ):
 	"""Resolve off-thread and reject results that arrive after the deadline."""

@@ -219,7 +219,8 @@ class VersionIsUpdateCheck:
 				window.setProperty('umbrella.updated', 'true')
 				curVersion = control.getUmbrellaVersion()
 				clearDB_version = '6.7.68' # set to desired version to force any db clearing needed
-				do_cacheClear = (int(oldVersion.replace('.', '')) < int(clearDB_version.replace('.', '')) <= int(curVersion.replace('.', '')))
+				from resources.lib.downstream.version_policy import numeric_version
+				do_cacheClear = (numeric_version(oldVersion, default=0) < numeric_version(clearDB_version) <= numeric_version(curVersion))
 				if do_cacheClear:
 					clr_fanarttv = False
 					cache.clrCache_version_update(clr_providers=True, clr_metacache=False, clr_cache=False, clr_search=False, clr_bookmarks=False)

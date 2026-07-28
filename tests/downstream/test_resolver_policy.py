@@ -91,8 +91,12 @@ class ImmediateThread:
 
 
 class StuckThread:
+	instances = []
+
 	def __init__(self, target):
 		self.target = target
+		self.daemon = False
+		self.__class__.instances.append(self)
 
 	def start(self):
 		pass
@@ -118,6 +122,7 @@ def test_default_resolve_timeout_allows_vpn_latency():
 
 
 def test_bounded_resolve_invalidates_late_worker():
+	StuckThread.instances.clear()
 	coordinator = ResolutionCoordinator()
 	result, status = bounded_resolve(
 		lambda: 'late.mp4',
@@ -131,6 +136,7 @@ def test_bounded_resolve_invalidates_late_worker():
 	assert status == 'timeout'
 	assert result is None
 	assert coordinator.result(1) is None
+	assert StuckThread.instances[-1].daemon is True
 
 
 def test_missing_metadata_is_normalized_without_copying_valid_mapping():

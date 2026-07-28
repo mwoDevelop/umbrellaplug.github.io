@@ -717,8 +717,14 @@ class RealDebrid:
 		try:
 			ck_token = self._get('user', token_ck=True) # check token, and refresh if needed
 			url = torrents_delete_url + "/%s&auth_token=%s" % (torrent_id, self.token)
-			response = session.delete(rest_base_url + url)
-			if not 'error' in response:
+			response = rd_transport.request(
+				session,
+				'DELETE',
+				rest_base_url + url,
+				timeout=15,
+			)
+			self.last_error = classify_response(response)
+			if response.status_code in (200, 204):
 				log_utils.log('Real-Debrid: Torrent ID %s was removed from your active torrents' % torrent_id, __name__, log_utils.LOGDEBUG)
 		except: log_utils.error('Real-Debrid Error: DELETE TORRENT %s : ')
 

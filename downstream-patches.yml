@@ -102,3 +102,6 @@ patches:
   - topic: "release: downstream Umbrella 6.7.81.16"
     commit: "fbdbf26440a3862ccf2db072420a265fcd5a8336"
     patch_id: "10000d86c9123aa7a64ce8f03d348be2c62787d8"
+  - topic: "fix: bound Real-Debrid resolver worker cleanup"
+    commit: "169b21268e768b47569f30fcd21a4b2b0c54c04f"
+    patch_id: "7787c736411120722312ad1805bde5eed96dd0ad"

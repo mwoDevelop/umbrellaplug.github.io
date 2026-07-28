@@ -407,6 +407,7 @@ class RealDebrid:
 		with _rd_magnet_semaphore:
 			try:
 				failed_reason, torrent_id, file_url = 'Unknown', None, None
+				torrent_deleted = False
 				extensions = supported_video_extensions()
 				extras_filtering_list = extras_filter()
 				info_hash = info_hash.lower()
@@ -479,12 +480,16 @@ class RealDebrid:
 							file_url, failed_reason = None, 'RD returned unsupported file extension --> %s' % file_url
 					except:
 							file_url, failed_reason = None, 'RD returned unsupported file extension or error getting file extension.'
-					if not self.store_to_cloud: self.delete_torrent(torrent_id)
+					if not self.store_to_cloud:
+						self.delete_torrent(torrent_id)
+						torrent_deleted = True
 				else:
 					self.delete_torrent(torrent_id)
+					torrent_deleted = True
 				if not file_url:
 					log_utils.log('Real-Debrid: FAILED TO RESOLVE MAGNET "%s" : (%s)' % (magnet_url, failed_reason), __name__, log_utils.LOGWARNING)
-					self.delete_torrent(torrent_id)
+					if not torrent_deleted:
+						self.delete_torrent(torrent_id)
 				return file_url
 			except:
 				log_utils.error('Real-Debrid: Error RESOLVE MAGNET "%s" ' % magnet_url)

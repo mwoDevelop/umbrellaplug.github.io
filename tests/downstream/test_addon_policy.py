@@ -103,3 +103,14 @@ def test_real_debrid_torrent_cleanup_uses_bounded_transport():
 	assert "'DELETE'" in delete_method
 	assert 'timeout=15' in delete_method
 	assert 'session.delete(' not in delete_method
+
+
+def test_real_debrid_failed_resolution_does_not_delete_torrent_twice():
+	source = REAL_DEBRID.read_text(encoding='utf-8')
+	resolve_method = source.split('def resolve_magnet', 1)[1].split(
+		'def display_magnet_pack',
+		1,
+	)[0]
+
+	assert 'torrent_deleted = False' in resolve_method
+	assert 'if not torrent_deleted:' in resolve_method

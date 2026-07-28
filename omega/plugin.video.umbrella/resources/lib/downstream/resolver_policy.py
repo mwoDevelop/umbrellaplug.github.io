@@ -132,6 +132,13 @@ def bounded_resolve(
 		coordinator.complete(generation, value)
 
 	worker = thread_factory(target=_run)
+	# Kodi waits for non-daemon Python workers before releasing a plug-in
+	# invocation.  A bounded resolver therefore also needs a daemon worker;
+	# otherwise the UI can remain stuck long after this policy returns timeout.
+	try:
+		worker.daemon = True
+	except (AttributeError, RuntimeError):
+		pass
 	worker.start()
 	polls = max(1, int(timeout_ms / poll_ms))
 	for _index in range(polls):

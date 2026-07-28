@@ -11,6 +11,15 @@ from resources.lib.downstream.addon_policy import (
 ADDON_XML = (
 	Path(__file__).parents[2] / 'omega' / 'plugin.video.umbrella' / 'addon.xml'
 )
+REAL_DEBRID = (
+	Path(__file__).parents[2]
+	/ 'omega'
+	/ 'plugin.video.umbrella'
+	/ 'resources'
+	/ 'lib'
+	/ 'debrid'
+	/ 'realdebrid.py'
+)
 
 
 def test_downstream_addon_identity_is_visible_in_kodi():
@@ -81,3 +90,16 @@ def test_external_provider_candidates_exclude_umbrella_itself():
 	) == [
 		{'addonid': 'script.module.mwoscrapers', 'name': 'MwoScrapers'},
 	]
+
+
+def test_real_debrid_torrent_cleanup_uses_bounded_transport():
+	source = REAL_DEBRID.read_text(encoding='utf-8')
+	delete_method = source.split('def delete_torrent', 1)[1].split(
+		'def get_link',
+		1,
+	)[0]
+
+	assert 'rd_transport.request(' in delete_method
+	assert "'DELETE'" in delete_method
+	assert 'timeout=15' in delete_method
+	assert 'session.delete(' not in delete_method

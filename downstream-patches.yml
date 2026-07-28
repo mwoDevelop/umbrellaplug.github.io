@@ -111,3 +111,6 @@ patches:
   - topic: "fix: avoid duplicate Real-Debrid torrent cleanup"
     commit: "85836c0981137d1e2df1a214914a94a5229daf51"
     patch_id: "89785fed37c554ec913018cef0d7a1c4b63ccdd5"
+  - topic: "release: downstream Umbrella 6.7.81.18"
+    commit: "8b1cbe8d89cceac3377a3bdffc7edb3f5235ca0d"
+    patch_id: "8f71fc6d45143dfcade5ef76f2f0c9e7d33d4c11"

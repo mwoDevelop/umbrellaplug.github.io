@@ -3,6 +3,7 @@ from xml.etree import ElementTree
 
 from resources.lib.downstream.addon_policy import (
 	OFFICIAL_RELEASE_INDEX,
+	external_provider_candidates,
 	installed_repository,
 	upstream_version_check,
 )
@@ -17,7 +18,7 @@ def test_downstream_addon_identity_is_visible_in_kodi():
 
 	assert addon.attrib['id'] == 'plugin.video.umbrella'
 	assert addon.attrib['name'] == 'Umbrella (mwoDevelop)'
-	assert addon.attrib['version'] == '6.7.81.15'
+	assert addon.attrib['version'] == '6.7.81.16'
 
 
 def test_optional_youtube_feature_does_not_block_umbrella_installation():
@@ -66,3 +67,17 @@ def test_missing_repository_has_stable_fallback():
 		raise RuntimeError('not installed')
 
 	assert installed_repository(missing) == ('Unknown Repo', 'unknown')
+
+
+def test_external_provider_candidates_exclude_umbrella_itself():
+	addons = [
+		{'addonid': 'plugin.video.umbrella', 'name': 'Umbrella (mwoDevelop)'},
+		{'addonid': 'script.module.mwoscrapers', 'name': 'MwoScrapers'},
+		{'name': 'Malformed module'},
+	]
+
+	assert external_provider_candidates(
+		addons, 'plugin.video.umbrella'
+	) == [
+		{'addonid': 'script.module.mwoscrapers', 'name': 'MwoScrapers'},
+	]

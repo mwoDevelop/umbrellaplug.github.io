@@ -110,6 +110,8 @@ def nonsense():
 def external_providers():
 	try:
 		results = control.jsonrpc_get_addons()
+		from resources.lib.downstream.addon_policy import external_provider_candidates
+		results = external_provider_candidates(results, control.addonId())
 		chosen = control.selectDialog([i.get('name') for i in results], 'Select external provider module:')
 		if chosen == None or chosen < 0: 
 			control.homeWindow.setProperty('umbrella.updateSettings', 'false')

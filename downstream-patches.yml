@@ -96,3 +96,6 @@ patches:
   - topic: "fix: preserve service update-check indentation"
     commit: "ee4c74ca624b6e044353573570cfbed220fba44f"
     patch_id: "9627a4be2735925fad6ccb98f647cb6b325cb4c7"
+  - topic: "fix: hide Umbrella from external provider choices"
+    commit: "26940ba8a49f85f60be2f98f7d1cd8db3863a58a"
+    patch_id: "42747bdea25f7af017b9af48a20671cd7610ed4c"

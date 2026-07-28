@@ -3,6 +3,7 @@ from xml.etree import ElementTree
 
 from resources.lib.downstream.addon_policy import (
 	OFFICIAL_RELEASE_INDEX,
+	external_provider_candidates,
 	installed_repository,
 	upstream_version_check,
 )
@@ -66,3 +67,17 @@ def test_missing_repository_has_stable_fallback():
 		raise RuntimeError('not installed')
 
 	assert installed_repository(missing) == ('Unknown Repo', 'unknown')
+
+
+def test_external_provider_candidates_exclude_umbrella_itself():
+	addons = [
+		{'addonid': 'plugin.video.umbrella', 'name': 'Umbrella (mwoDevelop)'},
+		{'addonid': 'script.module.mwoscrapers', 'name': 'MwoScrapers'},
+		{'name': 'Malformed module'},
+	]
+
+	assert external_provider_candidates(
+		addons, 'plugin.video.umbrella'
+	) == [
+		{'addonid': 'script.module.mwoscrapers', 'name': 'MwoScrapers'},
+	]

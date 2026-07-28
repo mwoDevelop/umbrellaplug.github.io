@@ -39,3 +39,11 @@ def installed_repository(addon_factory):
 		except Exception:
 			continue
 	return 'Unknown Repo', 'unknown'
+
+
+def external_provider_candidates(addons, own_addon_id):
+	"""Exclude the host plug-in from its external-provider selection list."""
+	return [
+		addon for addon in addons
+		if addon.get('addonid') and addon.get('addonid') != own_addon_id
+	]

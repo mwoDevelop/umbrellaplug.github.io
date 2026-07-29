@@ -1,0 +1,194 @@
+name: propose Umbrella upstream update
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "50 4 * * *"
+
+concurrency:
+  group: umbrella-upstream-update
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      action: ${{ steps.discovery.outputs.action }}
+      base_commit: ${{ steps.candidate.outputs.base_commit }}
+      candidate_id: ${{ steps.candidate.outputs.candidate_id }}
+      downstream_version: ${{ steps.candidate.outputs.downstream_version }}
+      expected_tree: ${{ steps.candidate.outputs.expected_tree }}
+      observed_commit: ${{ steps.discovery.outputs.observed_commit }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Discover exact upstream state
+        run: >-
+          python tools/prepare_umbrella_update.py discover
+          --output discovery.json
+      - name: Export discovery
+        id: discovery
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          value = json.loads(Path("discovery.json").read_text())
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+              output.write("action=%s\n" % value["action"])
+              output.write("observed_commit=%s\n" % value["observed_commit"])
+          PY
+      - name: Prepare and test patch-stack candidate
+        if: steps.discovery.outputs.action == 'prepare'
+        run: >-
+          python tools/prepare_umbrella_update.py prepare
+          --discovery discovery.json
+          --output candidate
+      - name: Export candidate
+        if: steps.discovery.outputs.action == 'prepare'
+        id: candidate
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          value = json.loads(Path("candidate/candidate.json").read_text())
+          metadata = value["metadata"]
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+              output.write("base_commit=%s\n" % metadata["base_commit"])
+              output.write("candidate_id=%s\n" % value["candidate_id"])
+              output.write("downstream_version=%s\n" % metadata["downstream_version"])
+              output.write("expected_tree=%s\n" % metadata["expected_tree"])
+          PY
+      - name: Upload discovery
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: umbrella-upstream-discovery
+          path: discovery.json
+          retention-days: 14
+      - name: Upload candidate
+        if: steps.discovery.outputs.action == 'prepare'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: umbrella-upstream-candidate
+          path: candidate/
+          retention-days: 7
+
+  report:
+    needs: prepare
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: umbrella-upstream-discovery
+      - name: Reconcile managed issue
+        env:
+          ACTION: ${{ needs.prepare.outputs.action }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Managed Umbrella upstream reconciliation"
+          issue="$(gh issue list --state open --search "$title in:title" --json number,title --jq '.[] | select(.title == "'"$title"'") | .number' | head -n 1)"
+          if [ "$ACTION" = "stop" ] || [ "$ACTION" = "quarantine" ]; then
+            body="$(mktemp)"
+            {
+              echo "Umbrella upstream update requires manual review."
+              echo
+              echo '```json'
+              cat discovery.json
+              echo '```'
+            } > "$body"
+            if [ -n "$issue" ]; then
+              gh issue edit "$issue" --body-file "$body"
+            else
+              gh issue create --title "$title" --body-file "$body"
+            fi
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "Umbrella reconciliation recovered."
+          fi
+
+  propose:
+    needs: prepare
+    if: needs.prepare.outputs.action == 'prepare'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.prepare.outputs.base_commit }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: umbrella-upstream-candidate
+          path: candidate
+      - name: Verify and apply without executing candidate code
+        run: >-
+          python tools/prepare_umbrella_update.py apply
+          --bundle candidate
+          --checkout .
+      - name: Open or update review-gated PR and ensure CI
+        env:
+          BASE_COMMIT: ${{ needs.prepare.outputs.base_commit }}
+          BRANCH: automation/umbrella-upstream
+          CANDIDATE_ID: ${{ needs.prepare.outputs.candidate_id }}
+          DOWNSTREAM_VERSION: ${{ needs.prepare.outputs.downstream_version }}
+          EXPECTED_TREE: ${{ needs.prepare.outputs.expected_tree }}
+          GH_TOKEN: ${{ github.token }}
+          OBSERVED_COMMIT: ${{ needs.prepare.outputs.observed_commit }}
+        run: |
+          git config user.name "mwoDevelop update bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git fetch origin "$BRANCH:refs/remotes/origin/$BRANCH" || true
+          test "$(git rev-parse origin/main)" = "$BASE_COMMIT"
+          git checkout -B "$BRANCH"
+          git add -A
+          test "$(git write-tree)" = "$EXPECTED_TREE"
+          git diff --cached --quiet && { echo "Candidate produced no change"; exit 1; }
+          git commit -m "Update Umbrella to $DOWNSTREAM_VERSION" \
+            -m "Upstream-SHA: $OBSERVED_COMMIT" \
+            -m "Candidate-ID: $CANDIDATE_ID"
+          remote_sha="$(git show-ref --hash "refs/remotes/origin/$BRANCH" 2>/dev/null || true)"
+          if [ -n "$remote_sha" ]; then
+            git push origin "HEAD:refs/heads/$BRANCH" \
+              "--force-with-lease=refs/heads/$BRANCH:$remote_sha"
+          else
+            git push origin "HEAD:refs/heads/$BRANCH"
+          fi
+          body="Automated patch-stack replay on exact upstream \`$OBSERVED_COMMIT\`. Candidate-ID: \`$CANDIDATE_ID\`. Protected repository paths are byte-identical to main."
+          number="$(gh pr list --state open --head "$BRANCH" --base main --json number --jq '.[0].number // empty')"
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --title "Update Umbrella to $DOWNSTREAM_VERSION" --body "$body"
+          else
+            gh pr create --base main --head "$BRANCH" \
+              --title "Update Umbrella to $DOWNSTREAM_VERSION" --body "$body"
+          fi
+          head_sha="$(git rev-parse HEAD)"
+          gh workflow run downstream-tests.yml --ref "$BRANCH"
+          found=false
+          for attempt in $(seq 1 15); do
+            run_head="$(gh run list --workflow downstream-tests.yml \
+              --branch "$BRANCH" --event workflow_dispatch --limit 1 \
+              --json headSha --jq '.[0].headSha // empty')"
+            if [ "$run_head" = "$head_sha" ]; then
+              found=true
+              break
+            fi
+            sleep 2
+          done
+          test "$found" = true

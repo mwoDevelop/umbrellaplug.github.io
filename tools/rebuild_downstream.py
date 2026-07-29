@@ -20,7 +20,9 @@ CONTROL = (
     ".gitignore",
     "DOWNSTREAM.md",
     "downstream-patches.yml",
+    "requirements-ci.txt",
     "tools/rebuild_downstream.py",
+    "tools/prepare_umbrella_update.py",
     "tests/downstream/test_rebuild.py",
 )
 
@@ -65,11 +67,12 @@ def manifest_state():
     return base.group(1), series, digest
 
 
-def reconstruct(output):
+def reconstruct(output, upstream_base=None):
     output = Path(output)
     if output.exists():
         raise ValueError("output already exists")
-    base, series, digest = manifest_state()
+    accepted_base, series, digest = manifest_state()
+    base = upstream_base or accepted_base
     run("git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(output))
     run("git", "checkout", "--quiet", base, cwd=output)
     for commit, patch in series:
@@ -95,7 +98,12 @@ def reconstruct(output):
         if target.exists():
             shutil.rmtree(target) if target.is_dir() else target.unlink()
         shutil.copytree(source, target) if source.is_dir() else shutil.copyfile(source, target)
-    return {"base": base, "patch_series_sha256": digest, "patches": len(series)}
+    return {
+        "base": base,
+        "accepted_base": accepted_base,
+        "patch_series_sha256": digest,
+        "patches": len(series),
+    }
 
 
 def compare_current(generated):

@@ -98,6 +98,7 @@ jobs:
         env:
           ACTION: ${{ needs.prepare.outputs.action }}
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           title="Managed Umbrella upstream reconciliation"
           issue="$(gh issue list --state open --search "$title in:title" --json number,title --jq '.[] | select(.title == "'"$title"'") | .number' | head -n 1)"

@@ -40,5 +40,6 @@ def test_exact_pr_head_is_scanned_before_downstream_tests():
         ROOT / ".github/workflows/downstream-tests.yml"
     ).read_text(encoding="utf-8")
     assert "test:\n    needs: malware-scan" in workflow
-    assert "git archive HEAD" in workflow
+    assert "omega/plugin.video.umbrella" in workflow
+    assert "downstream-patches.yml" in workflow
     assert "Scan exact head before executing addon code" in workflow

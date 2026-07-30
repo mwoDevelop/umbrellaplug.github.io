@@ -190,7 +190,6 @@ def prepare(discovery, output, root=ROOT):
             raise ValueError("could not update accepted upstream base")
         manifest.write_text(payload, encoding="utf-8")
         _replace_version(tree / ADDON_XML, discovery["downstream_version"])
-        _run("python3", "-m", "pytest", "-q", cwd=tree)
         _run("git", "add", "-A", cwd=tree)
         expected_tree = _run("git", "write-tree", cwd=tree).stdout.strip()
         files = _inventory(tree)
@@ -213,6 +212,29 @@ def prepare(discovery, output, root=ROOT):
             shutil.copyfile(source, target)
             os.chmod(target, 0o755 if item["executable"] else 0o644)
         (output / "candidate.json").write_bytes(_canonical(document))
+    return document
+
+
+def test_bundle(bundle, root=ROOT):
+    """Execute tests only after a content-addressed bundle passed scanning."""
+    document = verify(bundle)
+    base = document["metadata"]["base_commit"]
+    with tempfile.TemporaryDirectory(prefix="umbrella-candidate-test-") as temporary:
+        checkout = Path(temporary) / "checkout"
+        _run("git", "worktree", "add", "--detach", str(checkout), base, cwd=root)
+        try:
+            apply(bundle, checkout)
+            _run("python3", "-m", "pytest", "-q", cwd=checkout)
+        finally:
+            _run(
+                "git",
+                "worktree",
+                "remove",
+                "--force",
+                str(checkout),
+                cwd=root,
+                check=False,
+            )
     return document
 
 
@@ -276,6 +298,8 @@ def main():
     prepare_parser = commands.add_parser("prepare")
     prepare_parser.add_argument("--discovery", required=True)
     prepare_parser.add_argument("--output", required=True)
+    test_parser = commands.add_parser("test")
+    test_parser.add_argument("--bundle", required=True)
     verify_parser = commands.add_parser("verify")
     verify_parser.add_argument("--bundle", required=True)
     apply_parser = commands.add_parser("apply")
@@ -289,6 +313,8 @@ def main():
         )
     elif args.command == "prepare":
         result = prepare(json.loads(Path(args.discovery).read_text()), args.output)
+    elif args.command == "test":
+        result = test_bundle(args.bundle)
     elif args.command == "verify":
         result = verify(args.bundle)
     else:

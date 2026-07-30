@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "findings": [
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/context/tmdb.py",
+      "rule": "generic-api-key",
+      "sha256": "2354201ac9359d452eab91541830d66dea39b0dbdd161073aaa44155a8c92e5c"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/context/tmdb.py",
+      "rule": "generic-api-key",
+      "sha256": "2354201ac9359d452eab91541830d66dea39b0dbdd161073aaa44155a8c92e5c"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/opensubs.py",
+      "rule": "generic-api-key",
+      "sha256": "9a97570483bfd9d04db86a4e8c761570b5ed72bc1af13b351fd6e37a9539f96f"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/opensubs.py",
+      "rule": "generic-api-key",
+      "sha256": "9a97570483bfd9d04db86a4e8c761570b5ed72bc1af13b351fd6e37a9539f96f"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/playcount.py",
+      "rule": "generic-api-key",
+      "sha256": "034b51ed089a4a5121e426a3044077870fce0966a7f7a9debd75b9dd6fb57572"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/playcount.py",
+      "rule": "generic-api-key",
+      "sha256": "034b51ed089a4a5121e426a3044077870fce0966a7f7a9debd75b9dd6fb57572"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/youtube_menu.py",
+      "rule": "gcp-api-key",
+      "sha256": "973499361b74dfad49a917ae7b644759aa905bcda2511f7266b12fe5ad0e319a"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/youtube_menu.py",
+      "rule": "gcp-api-key",
+      "sha256": "973499361b74dfad49a917ae7b644759aa905bcda2511f7266b12fe5ad0e319a"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/trailer.py",
+      "rule": "gcp-api-key",
+      "sha256": "d7f6f07b26fd4ffe098c172bcf9ad380fe8f7900396ccf8dc756070e14435fdd"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/trailer.py",
+      "rule": "gcp-api-key",
+      "sha256": "d7f6f07b26fd4ffe098c172bcf9ad380fe8f7900396ccf8dc756070e14435fdd"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
+      "rule": "generic-api-key",
+      "sha256": "d98db5915edab5aed9d55f1868a3e674d903f009e53ea8f939c4585494de7624"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
+      "rule": "generic-api-key",
+      "sha256": "d98db5915edab5aed9d55f1868a3e674d903f009e53ea8f939c4585494de7624"
+    }
+  ]
+}

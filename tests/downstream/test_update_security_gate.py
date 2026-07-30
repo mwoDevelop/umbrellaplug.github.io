@@ -33,3 +33,12 @@ def test_tests_are_deferred_until_after_the_scanner_gate():
         "mwoDevelop/kodi/.github/actions/upstream-malware-scan@"
         "28f29307987e277836cb610c944c120d60638ba4"
     ) in workflow
+
+
+def test_exact_pr_head_is_scanned_before_downstream_tests():
+    workflow = (
+        ROOT / ".github/workflows/downstream-tests.yml"
+    ).read_text(encoding="utf-8")
+    assert "test:\n    needs: malware-scan" in workflow
+    assert "git archive HEAD" in workflow
+    assert "Scan exact head before executing addon code" in workflow

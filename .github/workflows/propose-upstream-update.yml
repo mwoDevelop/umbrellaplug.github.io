@@ -47,7 +47,7 @@ jobs:
               output.write("action=%s\n" % value["action"])
               output.write("observed_commit=%s\n" % value["observed_commit"])
           PY
-      - name: Prepare and test patch-stack candidate
+      - name: Materialize patch-stack candidate without executing it
         if: steps.discovery.outputs.action == 'prepare'
         run: >-
           python tools/prepare_umbrella_update.py prepare
@@ -69,6 +69,18 @@ jobs:
               output.write("downstream_version=%s\n" % metadata["downstream_version"])
               output.write("expected_tree=%s\n" % metadata["expected_tree"])
           PY
+      - name: Scan exact candidate before executing tests
+        if: steps.discovery.outputs.action == 'prepare'
+        uses: mwoDevelop/kodi/.github/actions/upstream-malware-scan@b3389b7d85ebee78a1757180676a5fe81ed13c9b
+        with:
+          candidate-path: candidate/tree
+          candidate-id: ${{ steps.candidate.outputs.candidate_id }}
+          output: security-report.json
+      - name: Test the scanned content-addressed candidate
+        if: steps.discovery.outputs.action == 'prepare'
+        run: >-
+          python tools/prepare_umbrella_update.py test
+          --bundle candidate
       - name: Upload discovery
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -81,6 +93,13 @@ jobs:
         with:
           name: umbrella-upstream-candidate
           path: candidate/
+          retention-days: 7
+      - name: Upload scanner attestation
+        if: steps.discovery.outputs.action == 'prepare'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: umbrella-upstream-security
+          path: security-report.json
           retention-days: 7
 
   report:
@@ -137,6 +156,27 @@ jobs:
         with:
           name: umbrella-upstream-candidate
           path: candidate
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: umbrella-upstream-security
+          path: security
+      - name: Verify scanner attestation against downloaded bytes
+        env:
+          CANDIDATE_ID: ${{ needs.prepare.outputs.candidate_id }}
+          SECURITY_CONTROL_SHA: b3389b7d85ebee78a1757180676a5fe81ed13c9b
+        run: |
+          set -euo pipefail
+          control="$RUNNER_TEMP/mwodevelop-security-control"
+          git init "$control"
+          git -C "$control" remote add origin https://github.com/mwoDevelop/kodi.git
+          git -C "$control" fetch --depth 1 origin "$SECURITY_CONTROL_SHA"
+          test "$(git -C "$control" rev-parse FETCH_HEAD)" = "$SECURITY_CONTROL_SHA"
+          git -C "$control" checkout --detach FETCH_HEAD
+          python "$control/tools/upstream_security_scan.py" verify \
+            --candidate candidate/tree \
+            --candidate-id "$CANDIDATE_ID" \
+            --report security/security-report.json \
+            --policy "$control/manifests/upstream-security.json"
       - name: Verify and apply without executing candidate code
         run: >-
           python tools/prepare_umbrella_update.py apply

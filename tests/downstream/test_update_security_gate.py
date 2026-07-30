@@ -1,4 +1,6 @@
 import ast
+import hashlib
+import json
 from pathlib import Path
 
 
@@ -43,3 +45,15 @@ def test_exact_pr_head_is_scanned_before_downstream_tests():
     assert "omega/plugin.video.umbrella" in workflow
     assert "downstream-patches.yml" in workflow
     assert "Scan exact head before executing addon code" in workflow
+    assert "baseline: .github/security-baseline.json" in workflow
+
+
+def test_security_baseline_is_bound_to_current_reviewed_bytes():
+    baseline = json.loads(
+        (ROOT / ".github/security-baseline.json").read_text(encoding="utf-8")
+    )
+    assert baseline["schema"] == 1
+    for item in baseline["findings"]:
+        relative = item["path"].removeprefix("tree/")
+        digest = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
+        assert digest == item["sha256"]

@@ -120,3 +120,6 @@ patches:
   - topic: "release: downstream Umbrella 6.7.81.19"
     commit: "a4cc393f2816ace50e8b7c4a02245489008542e3"
     patch_id: "b2c55e3a0e2f3c0310a5594fa4ca3d6f267283eb"
+  - topic: "fix: cover serialized RD transport deadline"
+    commit: "abfd4264ce1eaf826ab150c6e2119dad62f96556"
+    patch_id: "c69669c79fe70df49727cdd83f636bef19c31f4b"

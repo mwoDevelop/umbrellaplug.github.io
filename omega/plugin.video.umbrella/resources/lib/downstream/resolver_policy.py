@@ -8,7 +8,7 @@ from time import monotonic
 # Android TV routed through a VPN, a valid failure response can arrive just
 # after 20 seconds. Keep the worker bounded, but leave enough headroom for
 # that response so autoplay can continue with the next source.
-AUTOPLAY_RESOLVE_TIMEOUT_MS = 30000
+AUTOPLAY_RESOLVE_TIMEOUT_MS = 45000
 
 
 def normalized_metadata(value):

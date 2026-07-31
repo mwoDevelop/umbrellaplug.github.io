@@ -118,7 +118,7 @@ def test_bounded_resolve_returns_immediate_result():
 
 
 def test_default_resolve_timeout_allows_vpn_latency():
-	assert AUTOPLAY_RESOLVE_TIMEOUT_MS == 30000
+	assert AUTOPLAY_RESOLVE_TIMEOUT_MS == 45000
 
 
 def test_bounded_resolve_invalidates_late_worker():

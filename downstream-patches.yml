@@ -114,3 +114,6 @@ patches:
   - topic: "release: downstream Umbrella 6.7.81.18"
     commit: "8b1cbe8d89cceac3377a3bdffc7edb3f5235ca0d"
     patch_id: "8f71fc6d45143dfcade5ef76f2f0c9e7d33d4c11"
+  - topic: "fix: allow VPN latency in autoplay resolution"
+    commit: "43a01c8e375c9fe7d28965656fef3a534b51562b"
+    patch_id: "cbaf89ea1c2610ac63087fb18eee947ad853d8d8"

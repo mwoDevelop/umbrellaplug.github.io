@@ -126,3 +126,6 @@ patches:
   - topic: "fix: tolerate unavailable Kodi video library"
     commit: "eb69196a94d0ff219bf5ca5fb47f39fd1acafe5e"
     patch_id: "8caf1254af4dd466cd33bc7d7f5369a2027d4061"
+  - topic: "release: downstream Umbrella 6.7.81.20"
+    commit: "87efc15b8d3beaedad0758df878f7aa3e7ed0542"
+    patch_id: "a88c96514a9f4190f89cac432473fe530399c47e"

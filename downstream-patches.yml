@@ -123,3 +123,6 @@ patches:
   - topic: "fix: cover serialized RD transport deadline"
     commit: "abfd4264ce1eaf826ab150c6e2119dad62f96556"
     patch_id: "c69669c79fe70df49727cdd83f636bef19c31f4b"
+  - topic: "fix: tolerate unavailable Kodi video library"
+    commit: "eb69196a94d0ff219bf5ca5fb47f39fd1acafe5e"
+    patch_id: "8caf1254af4dd466cd33bc7d7f5369a2027d4061"

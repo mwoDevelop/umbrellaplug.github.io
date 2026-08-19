@@ -26,3 +26,9 @@ def test_upstream_proposal_records_patch_conflicts_before_failing_closed():
     assert "downstream_patch_conflict" in workflow
     assert "if: always()" in workflow
     assert "pip install --require-hashes -r requirements-ci.txt" in workflow
+    assert workflow.index("Upload discovery before any risky candidate operation") < workflow.index(
+        "Materialize patch-stack candidate without executing it"
+    )
+    assert "candidate/tree/omega/plugin.video.umbrella" in workflow
+    assert "candidate-path: scan-candidate" in workflow
+    assert "--candidate scan-candidate" in workflow

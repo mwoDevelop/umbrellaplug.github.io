@@ -7100,14 +7100,14 @@ msgctxt "#40714"
 msgid "[COLOR %s][B]Dropped Manager - Shows[/B][/COLOR]"
 msgstr ""
 
-msgctxt "#40720"
+msgctxt "#49920"
 msgid "Umbrella upstream v%s is newer than mwoDevelop stable v%s. Qualification is in progress."
 msgstr "Umbrella upstream v%s jest nowsza od mwoDevelop stable v%s. Trwa kwalifikacja."
 
-msgctxt "#40721"
+msgctxt "#49921"
 msgid "Umbrella upstream v%s is waiting for mwoDevelop intervention: %s."
 msgstr "Umbrella upstream v%s oczekuje na interwencje mwoDevelop: %s."
 
-msgctxt "#40722"
+msgctxt "#49922"
 msgid "Umbrella mwoDevelop v%s has reported a release incident. Further automatic releases are paused."
 msgstr "Umbrella mwoDevelop v%s zglosila incydent wydania. Kolejne automatyczne wydania sa wstrzymane."

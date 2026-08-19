@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import json
 import re
 import shutil
 import subprocess
@@ -15,11 +16,17 @@ MANIFEST = ROOT / "downstream-patches.yml"
 BASE = re.compile(r'^  base: "([0-9a-f]{40})"$', re.MULTILINE)
 COMMITS = re.compile(r'^    commit: "([0-9a-f]{40})"$', re.MULTILINE)
 MECHANICAL = ("omega/plugin.video.umbrella/addon.xml",)
+LOCALIZATIONS = ROOT / "downstream-localizations.json"
+LOCALIZATION_PATHS = (
+    "omega/plugin.video.umbrella/resources/language/English/strings.po",
+    "omega/plugin.video.umbrella/resources/language/Polish/strings.po",
+)
 PROTECTED = (".github", ".gitmodules")
 CONTROL = (
     ".gitignore",
     "DOWNSTREAM.md",
     "downstream-patches.yml",
+    "downstream-localizations.json",
     "requirements-ci.txt",
     "tools/rebuild_downstream.py",
     "tools/prepare_umbrella_update.py",
@@ -47,7 +54,12 @@ def manifest_state():
     if not base or not commits:
         raise ValueError("downstream patch manifest is incomplete")
     series = []
-    excluded = (".github/**", ".gitmodules") + MECHANICAL + CONTROL
+    excluded = (
+        (".github/**", ".gitmodules")
+        + MECHANICAL
+        + LOCALIZATION_PATHS
+        + CONTROL
+    )
     for commit in commits:
         patch = run(
             *(
@@ -65,6 +77,35 @@ def manifest_state():
         series.append((commit, patch))
     digest = hashlib.sha256(b"".join(patch for _, patch in series)).hexdigest()
     return base.group(1), series, digest
+
+
+def apply_localizations(output):
+    """Append downstream-only messages without patching volatile upstream PO tails."""
+    document = json.loads(LOCALIZATIONS.read_text(encoding="utf-8"))
+    if document.get("schema") != 1:
+        raise ValueError("unsupported downstream localization schema")
+    for relative, messages in document.get("files", {}).items():
+        if relative not in LOCALIZATION_PATHS:
+            raise ValueError("unexpected downstream localization path: %s" % relative)
+        path = Path(output) / relative
+        payload = path.read_text(encoding="utf-8")
+        additions = []
+        for message in messages:
+            context = str(message["context"])
+            marker = 'msgctxt "#%s"' % context
+            if marker in payload:
+                raise ValueError(
+                    "downstream localization id collides with upstream: %s" % context
+                )
+            additions.append(
+                '%s\nmsgid "%s"\nmsgstr "%s"'
+                % (marker, message["msgid"], message["msgstr"])
+            )
+        if additions:
+            path.write_text(
+                payload.rstrip("\n") + "\n\n" + "\n\n".join(additions) + "\n",
+                encoding="utf-8",
+            )
 
 
 def reconstruct(output, upstream_base=None):
@@ -98,6 +139,7 @@ def reconstruct(output, upstream_base=None):
         if target.exists():
             shutil.rmtree(target) if target.is_dir() else target.unlink()
         shutil.copytree(source, target) if source.is_dir() else shutil.copyfile(source, target)
+    apply_localizations(output)
     return {
         "base": base,
         "accepted_base": accepted_base,

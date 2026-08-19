@@ -14,6 +14,7 @@ repository_policy_paths:
   - ".gitignore"
   - "DOWNSTREAM.md"
   - "downstream-patches.yml"
+  - "downstream-localizations.json"
 patches:
   - topic: "test: add downstream resolver policy coverage"
     commit: "8e2bf791ff362dd5dbec4b0136b5f0bc2699b169"
@@ -141,3 +142,6 @@ patches:
   - topic: "test: accept forward downstream release revisions"
     commit: "82d684982209db4e94a80dfe8bf679468ea789bd"
     patch_id: "4a55582a50e12b2e91cc94777dfdf85df1587531"
+  - topic: "fix: isolate downstream localization overlay"
+    commit: "38f57f036e16057e377a153041e7f664035a822b"
+    patch_id: "13dbfc1de43db28b4d7531c843a5f6a7a2c99098"

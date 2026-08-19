@@ -200,11 +200,11 @@ class AddonCheckUpdate:
 			if kind == 'stable_available':
 				message = control.lang(35523) % values[0]
 			elif kind == 'upstream_pending':
-				message = control.lang(40720) % values
+				message = control.lang(49920) % values
 			elif kind == 'blocked':
-				message = control.lang(40721) % values
+				message = control.lang(49921) % values
 			else:
-				message = control.lang(40722) % values[0]
+				message = control.lang(49922) % values[0]
 			while control.condVisibility('Library.IsScanningVideo'):
 				if control.monitor.waitForAbort(10):
 					return

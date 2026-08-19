@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path, PurePosixPath
 
@@ -224,7 +225,7 @@ def test_bundle(bundle, root=ROOT):
         _run("git", "worktree", "add", "--detach", str(checkout), base, cwd=root)
         try:
             apply(bundle, checkout)
-            _run("python3", "-m", "pytest", "-q", cwd=checkout)
+            _run(sys.executable, "-m", "pytest", "-q", cwd=checkout)
         finally:
             _run(
                 "git",

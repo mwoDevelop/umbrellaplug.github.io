@@ -71,7 +71,7 @@ def status(state='qualifying', health='healthy', upstream='6.7.84', stable='6.7.
 			'stable': stable,
 			'stable_upstream_base': '.'.join(stable.split('.')[:3]),
 		},
-		'upstream': {'commit': 'b' * 40},
+		'upstream': {'commit': 'b' * 40, 'stable_base_commit': 'c' * 40},
 		'generated_at': '2026-08-19T10:00:00Z',
 		'expires_at': '2026-08-21T10:00:00Z',
 	}

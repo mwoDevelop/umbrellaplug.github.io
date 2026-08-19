@@ -89,7 +89,13 @@ def _timestamp(value):
 
 def validate_release_status(document, now=None):
 	"""Validate the public, notification-only release status document."""
-	if not isinstance(document, dict) or document.get('schema') != STATUS_SCHEMA:
+	expected = {
+		'schema', 'component', 'pipeline', 'release', 'versions', 'upstream',
+		'generated_at', 'expires_at'
+	}
+	if not isinstance(document, dict) or set(document) != expected:
+		raise ValueError('unsupported Umbrella status fields')
+	if document.get('schema') != STATUS_SCHEMA:
 		raise ValueError('unsupported Umbrella status schema')
 	if document.get('component') != 'plugin.video.umbrella':
 		raise ValueError('unexpected Umbrella status component')
@@ -97,17 +103,23 @@ def validate_release_status(document, now=None):
 	release = document.get('release')
 	versions = document.get('versions')
 	upstream = document.get('upstream')
-	if not isinstance(pipeline, dict) or pipeline.get('state') not in PIPELINE_STATES:
+	if not isinstance(pipeline, dict) or set(pipeline) != {
+		'state', 'candidate_id', 'failure_code'
+	} or pipeline.get('state') not in PIPELINE_STATES:
 		raise ValueError('invalid Umbrella pipeline state')
-	if not isinstance(release, dict) or release.get('health') not in RELEASE_HEALTH:
+	if not isinstance(release, dict) or set(release) != {'health'} or release.get(
+		'health'
+	) not in RELEASE_HEALTH:
 		raise ValueError('invalid Umbrella release health')
-	if not isinstance(versions, dict):
+	if not isinstance(versions, dict) or set(versions) != {
+		'upstream', 'stable', 'stable_upstream_base'
+	}:
 		raise ValueError('missing Umbrella status versions')
 	for field in ('upstream', 'stable', 'stable_upstream_base'):
 		version_tuple(versions.get(field, ''))
-	if not isinstance(upstream, dict) or not HEX40.fullmatch(
-		str(upstream.get('commit', ''))
-	):
+	if not isinstance(upstream, dict) or set(upstream) != {
+		'commit', 'stable_base_commit'
+	} or not all(HEX40.fullmatch(str(upstream.get(field, ''))) for field in upstream):
 		raise ValueError('invalid Umbrella upstream commit')
 	candidate_id = pipeline.get('candidate_id')
 	if candidate_id is not None and not HEX64.fullmatch(str(candidate_id)):
@@ -148,7 +160,7 @@ def fallback_release_status(installed_version, upstream_version, now=None):
 			'stable': installed_version,
 			'stable_upstream_base': base,
 		},
-		'upstream': {'commit': '0' * 40},
+		'upstream': {'commit': '0' * 40, 'stable_base_commit': '0' * 40},
 		'generated_at': stamp(now),
 		'expires_at': stamp(now + 6 * 60 * 60),
 	}

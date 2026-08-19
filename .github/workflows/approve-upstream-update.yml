@@ -1,0 +1,148 @@
+name: approve exact Umbrella upstream update
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "2,17,32,47 * * * *"
+
+concurrency:
+  group: approve-exact-umbrella-upstream
+  cancel-in-progress: false
+
+permissions:
+  checks: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify:
+    if: >-
+      github.repository == 'mwoDevelop/umbrellaplug.github.io' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      eligible: ${{ steps.verify.outputs.eligible }}
+      number: ${{ steps.verify.outputs.number }}
+      head_sha: ${{ steps.verify.outputs.head_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact bot PR, protected paths, provenance, and checks
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: automation/umbrella-upstream
+        run: |
+          set -euo pipefail
+          mapfile -t numbers < <(gh pr list --state open --base main --head "$BRANCH" \
+            --json number --jq '.[].number')
+          if [ "${#numbers[@]}" -eq 0 ]; then
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test "${#numbers[@]}" -eq 1
+          number="${numbers[0]}"
+          gh pr view "$number" --json author,baseRefName,headRefName,headRefOid,isDraft,files \
+            --jq '{author:.author.login,base:.baseRefName,head:.headRefName,head_sha:.headRefOid,draft:.isDraft,files:[.files[].path]}' > pr.json
+          eval "$(python - <<'PY'
+          import json, shlex
+          value = json.load(open("pr.json"))
+          if set(value) != {"author", "base", "head", "head_sha", "draft", "files"} or value.get("author") not in {"app/github-actions", "github-actions"}:
+              raise SystemExit("unexpected PR author")
+          if value.get("base") != "main" or value.get("head") != "automation/umbrella-upstream" or value.get("draft") is not False:
+              raise SystemExit("unexpected PR identity")
+          protected = {
+              ".gitmodules", ".gitignore", "DOWNSTREAM.md", "requirements-ci.txt"
+          }
+          protected_prefixes = (".github/", "tools/", "tests/downstream/")
+          if not value.get("files") or any(
+              path in protected or path.startswith(protected_prefixes)
+              for path in value["files"]
+          ):
+              raise SystemExit("protected repository path changed")
+          print("HEAD_SHA=%s" % shlex.quote(value["head_sha"]))
+          PY
+          )"
+          case "$HEAD_SHA" in *[!0-9a-f]*|'') exit 1 ;; esac
+          test "${#HEAD_SHA}" -eq 40
+          git fetch origin "$HEAD_SHA:refs/verify/umbrella-upstream"
+          test "$(git rev-list --count origin/main..refs/verify/umbrella-upstream)" -eq 1
+          message="$(git log -1 --format=%B refs/verify/umbrella-upstream)"
+          upstream="$(printf '%s\n' "$message" | sed -nE 's/^Upstream-SHA: ([0-9a-f]{40})$/\1/p')"
+          candidate="$(printf '%s\n' "$message" | sed -nE 's/^Candidate-ID: ([0-9a-f]{64})$/\1/p')"
+          test "${#upstream}" -eq 40
+          test "${#candidate}" -eq 64
+          declared="$(git show refs/verify/umbrella-upstream:downstream-patches.yml | sed -nE 's/^  base: "([0-9a-f]{40})"$/\1/p')"
+          test "$declared" = "$upstream"
+          git show origin/main:downstream-patches.yml > base-manifest.yml
+          git show refs/verify/umbrella-upstream:downstream-patches.yml > head-manifest.yml
+          UPSTREAM_SHA="$upstream" python - <<'PY'
+          import os
+          import re
+          base = open("base-manifest.yml", encoding="utf-8").read()
+          head = open("head-manifest.yml", encoding="utf-8").read()
+          pattern = re.compile(r'(?m)^  base: "([0-9a-f]{40})"$')
+          old = pattern.search(base)
+          new = pattern.search(head)
+          if not old or not new or new.group(1) != os.environ["UPSTREAM_SHA"]:
+              raise SystemExit("upstream base declaration is invalid")
+          normalized, count = pattern.subn(old.group(0), head, count=1)
+          if count != 1 or normalized != base:
+              raise SystemExit("downstream manifest changed beyond upstream base")
+          PY
+          gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" \
+            --jq '[.check_runs[] | {name,status,conclusion,head_sha}]' > checks.json
+          HEAD_SHA="$HEAD_SHA" python - <<'PY'
+          import json, os
+          checks = [item for item in json.load(open("checks.json")) if item["head_sha"] == os.environ["HEAD_SHA"]]
+          if any(item["status"] != "completed" or item["conclusion"] not in {"success", "neutral", "skipped"} for item in checks):
+              raise SystemExit("PR checks are not green")
+          names = {item["name"] for item in checks if item["conclusion"] == "success"}
+          if not {"malware-scan", "test"}.issubset(names):
+              raise SystemExit("required checks are missing")
+          PY
+          printf '{"schema":1,"candidate_id":"%s","head_sha":"%s","upstream_commit":"%s"}\n' \
+            "$candidate" "$HEAD_SHA" "$upstream" > decision.json
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.verify.outputs.eligible == 'true'
+        with:
+          name: umbrella-upstream-approval-${{ steps.verify.outputs.head_sha }}
+          path: decision.json
+          retention-days: 90
+
+  approve:
+    needs: verify
+    if: >-
+      needs.verify.outputs.eligible == 'true' &&
+      vars.UMBRELLA_AUTO_MERGE_ENABLED == 'true'
+    environment: umbrella-auto-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint a narrowly scoped GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.UMBRELLA_RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.UMBRELLA_RELEASE_APP_PRIVATE_KEY }}
+          owner: mwoDevelop
+          repositories: umbrellaplug.github.io
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Recheck head, approve, and enable native auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          NUMBER: ${{ needs.verify.outputs.number }}
+          VERIFIED_HEAD: ${{ needs.verify.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          current="$(gh pr view "$NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid --jq .headRefOid)"
+          test "$current" = "$VERIFIED_HEAD"
+          gh pr review "$NUMBER" --repo "$GITHUB_REPOSITORY" --approve \
+            --body "Automatyczna aprobata: dokładny upstream, odtworzony patch stack, czysty malware scan i zielone testy."
+          gh pr merge "$NUMBER" --repo "$GITHUB_REPOSITORY" --auto --merge \
+            --match-head-commit "$VERIFIED_HEAD"

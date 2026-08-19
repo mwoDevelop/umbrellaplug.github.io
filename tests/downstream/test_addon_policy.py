@@ -3,9 +3,16 @@ from xml.etree import ElementTree
 
 from resources.lib.downstream.addon_policy import (
 	OFFICIAL_RELEASE_INDEX,
+	PUBLIC_RELEASE_STATUS,
 	external_provider_candidates,
+	fallback_release_status,
+	fetch_release_status,
 	installed_repository,
+	notification_decision,
+	parse_addon_version,
 	upstream_version_check,
+	validate_release_status,
+	version_is_newer,
 )
 
 ADDON_XML = (
@@ -27,7 +34,9 @@ def test_downstream_addon_identity_is_visible_in_kodi():
 
 	assert addon.attrib['id'] == 'plugin.video.umbrella'
 	assert addon.attrib['name'] == 'Umbrella (mwoDevelop)'
-	assert addon.attrib['version'] == '6.7.81.20'
+	parts = tuple(int(part) for part in addon.attrib['version'].split('.'))
+	assert len(parts) == 4
+	assert parts[-1] > 0
 
 
 def test_optional_youtube_feature_does_not_block_umbrella_installation():
@@ -42,10 +51,97 @@ def test_optional_youtube_feature_does_not_block_umbrella_installation():
 
 def test_downstream_revision_compares_as_its_upstream_base():
 	assert upstream_version_check('6.7.81.5') == ('6.7.81', OFFICIAL_RELEASE_INDEX)
+	assert '/omega/' in OFFICIAL_RELEASE_INDEX
 
 
 def test_upstream_version_is_unchanged():
 	assert upstream_version_check('6.7.81') == ('6.7.81', OFFICIAL_RELEASE_INDEX)
+
+
+def status(state='qualifying', health='healthy', upstream='6.7.84', stable='6.7.81.20'):
+	return {
+		'schema': 1,
+		'component': 'plugin.video.umbrella',
+		'pipeline': {
+			'state': state,
+			'candidate_id': 'a' * 64 if state != 'in_sync' else None,
+			'failure_code': 'patch_conflict' if state == 'blocked' else None,
+		},
+		'release': {'health': health},
+		'versions': {
+			'upstream': upstream,
+			'stable': stable,
+			'stable_upstream_base': '.'.join(stable.split('.')[:3]),
+		},
+		'upstream': {'commit': 'b' * 40, 'stable_base_commit': 'c' * 40},
+		'generated_at': '2026-08-19T10:00:00Z',
+		'expires_at': '2026-08-21T10:00:00Z',
+	}
+
+
+def test_release_status_uses_strict_xml_and_numeric_versions():
+	assert parse_addon_version(
+		'<addon id="plugin.video.umbrella" version="6.7.84" />'
+	) == '6.7.84'
+	assert version_is_newer('6.7.84.1', '6.7.84')
+	assert not version_is_newer('6.7.81.20', '6.7.84')
+
+
+def test_release_status_is_strict_and_expires():
+	assert validate_release_status(status(), now=1787133600)['schema'] == 1
+	try:
+		validate_release_status(status(), now=1787306401)
+	except ValueError as error:
+		assert 'expired' in str(error)
+	else:
+		raise AssertionError('expired status was accepted')
+
+
+def test_status_fetch_falls_back_to_official_omega_index():
+	class Response:
+		def __init__(self, code, content):
+			self.status_code = code
+			self.content = content
+
+	calls = []
+	def get(url, timeout):
+		calls.append((url, timeout))
+		if url == PUBLIC_RELEASE_STATUS:
+			return Response(503, b'')
+		return Response(200, b'<addon id="plugin.video.umbrella" version="6.7.84"/>')
+
+	result = fetch_release_status(get, '6.7.81.20', now=1787133600)
+	assert result['pipeline']['state'] == 'detected'
+	assert result['release']['health'] == 'unknown'
+	assert calls[1][0] == OFFICIAL_RELEASE_INDEX
+
+
+def test_notifications_distinguish_pending_stable_blocked_and_incident():
+	pending = notification_decision(status(), '6.7.81.20', now=1787133600)
+	assert pending['kind'] == 'upstream_pending'
+	assert notification_decision(
+		status(), '6.7.81.20', last_key=pending['key'],
+		last_at=pending['at'], now=1787133601,
+	) is None
+
+	available = status(state='in_sync', upstream='6.7.84', stable='6.7.84.1')
+	assert notification_decision(
+		available, '6.7.81.20', now=1787133600
+	)['kind'] == 'stable_available'
+	assert notification_decision(
+		status(state='blocked'), '6.7.81.20', now=1787133600
+	)['kind'] == 'blocked'
+	assert notification_decision(
+		status(health='incident'), '6.7.81.20', now=1787133600
+	)['kind'] == 'incident'
+
+
+def test_forward_rollback_base_is_not_inferred_from_release_version():
+	document = status(state='in_sync', upstream='6.7.84', stable='6.7.84.2')
+	document['versions']['stable_upstream_base'] = '6.7.81'
+	assert validate_release_status(document, now=1787133600)[
+		'versions'
+	]['stable_upstream_base'] == '6.7.81'
 
 
 def test_downstream_repository_is_preferred_without_upstream_test_heuristic():

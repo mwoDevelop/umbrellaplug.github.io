@@ -5791,3 +5791,15 @@ msgstr ""
 msgctxt "#40714"
 msgid "[COLOR %s][B]Dropped Manager - Shows[/B][/COLOR]"
 msgstr ""
+
+msgctxt "#40720"
+msgid "Umbrella upstream v%s is newer than mwoDevelop stable v%s. Qualification is in progress."
+msgstr ""
+
+msgctxt "#40721"
+msgid "Umbrella upstream v%s is waiting for mwoDevelop intervention: %s."
+msgstr ""
+
+msgctxt "#40722"
+msgid "Umbrella mwoDevelop v%s has reported a release incident. Further automatic releases are paused."
+msgstr ""

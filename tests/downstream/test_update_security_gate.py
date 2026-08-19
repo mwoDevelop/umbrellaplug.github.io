@@ -33,7 +33,7 @@ def test_tests_are_deferred_until_after_the_scanner_gate():
     assert scan < execute
     assert (
         "mwoDevelop/kodi/.github/actions/upstream-malware-scan@"
-        "8b4fe96708d1e2e64cf535e3726fa7a9a4a1adb6"
+        "0ebfd26322d8686c1bef1222f3783cd8e55c5e78"
     ) in workflow
 
 

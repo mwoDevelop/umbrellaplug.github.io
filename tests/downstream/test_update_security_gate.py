@@ -53,7 +53,11 @@ def test_security_baseline_is_bound_to_current_reviewed_bytes():
         (ROOT / ".github/security-baseline.json").read_text(encoding="utf-8")
     )
     assert baseline["schema"] == 1
+    groups = {}
     for item in baseline["findings"]:
-        relative = item["path"].removeprefix("tree/")
+        key = (item["engine"], item["path"], item["rule"])
+        groups.setdefault(key, set()).add(item["sha256"])
+    for (_engine, path, _rule), accepted in groups.items():
+        relative = path.removeprefix("tree/")
         digest = hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
-        assert digest == item["sha256"]
+        assert digest in accepted

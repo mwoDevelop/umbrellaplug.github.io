@@ -25,3 +25,4 @@ def test_upstream_proposal_records_patch_conflicts_before_failing_closed():
     assert "steps.materialize.outcome == 'failure'" in workflow
     assert "downstream_patch_conflict" in workflow
     assert "if: always()" in workflow
+    assert "pip install --require-hashes -r requirements-ci.txt" in workflow

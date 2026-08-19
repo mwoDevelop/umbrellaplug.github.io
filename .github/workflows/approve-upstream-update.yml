@@ -53,7 +53,14 @@ jobs:
               raise SystemExit("unexpected PR author")
           if value.get("base") != "main" or value.get("head") != "automation/umbrella-upstream" or value.get("draft") is not False:
               raise SystemExit("unexpected PR identity")
-          if not value.get("files") or any(path == ".gitmodules" or path.startswith(".github/") for path in value["files"]):
+          protected = {
+              ".gitmodules", ".gitignore", "DOWNSTREAM.md", "requirements-ci.txt"
+          }
+          protected_prefixes = (".github/", "tools/", "tests/downstream/")
+          if not value.get("files") or any(
+              path in protected or path.startswith(protected_prefixes)
+              for path in value["files"]
+          ):
               raise SystemExit("protected repository path changed")
           print("HEAD_SHA=%s" % shlex.quote(value["head_sha"]))
           PY
@@ -69,8 +76,22 @@ jobs:
           test "${#candidate}" -eq 64
           declared="$(git show refs/verify/umbrella-upstream:downstream-patches.yml | sed -nE 's/^  base: "([0-9a-f]{40})"$/\1/p')"
           test "$declared" = "$upstream"
-          git worktree add --detach "$RUNNER_TEMP/verified-head" refs/verify/umbrella-upstream
-          python "$RUNNER_TEMP/verified-head/tools/rebuild_downstream.py" --check
+          git show origin/main:downstream-patches.yml > base-manifest.yml
+          git show refs/verify/umbrella-upstream:downstream-patches.yml > head-manifest.yml
+          UPSTREAM_SHA="$upstream" python - <<'PY'
+          import os
+          import re
+          base = open("base-manifest.yml", encoding="utf-8").read()
+          head = open("head-manifest.yml", encoding="utf-8").read()
+          pattern = re.compile(r'(?m)^  base: "([0-9a-f]{40})"$')
+          old = pattern.search(base)
+          new = pattern.search(head)
+          if not old or not new or new.group(1) != os.environ["UPSTREAM_SHA"]:
+              raise SystemExit("upstream base declaration is invalid")
+          normalized, count = pattern.subn(old.group(0), head, count=1)
+          if count != 1 or normalized != base:
+              raise SystemExit("downstream manifest changed beyond upstream base")
+          PY
           gh api "repos/$GITHUB_REPOSITORY/commits/$HEAD_SHA/check-runs?per_page=100" \
             --jq '[.check_runs[] | {name,status,conclusion,head_sha}]' > checks.json
           HEAD_SHA="$HEAD_SHA" python - <<'PY'

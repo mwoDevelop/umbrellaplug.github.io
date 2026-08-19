@@ -135,6 +135,3 @@ patches:
   - topic: "fix: bind release status to upstream base"
     commit: "b7dabdb3ace6e5f92a167e4cd6c42dd5bc969160"
     patch_id: "9c475416eb941182f5d648e7888bd1a01d216bed"
-  - topic: "ci: approve exact upstream update policy"
-    commit: "03557ed82e7e4ac5b3787b25a7daf8e96c7d51d4"
-    patch_id: "06e4b23dd2197566894201e7dd94a559c9dda36e"

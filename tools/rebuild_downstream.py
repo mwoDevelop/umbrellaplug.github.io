@@ -23,6 +23,7 @@ CONTROL = (
     "requirements-ci.txt",
     "tools/rebuild_downstream.py",
     "tools/prepare_umbrella_update.py",
+    "tests/downstream/test_auto_approval_workflow.py",
     "tests/downstream/test_rebuild.py",
     "tests/downstream/test_update_security_gate.py",
 )

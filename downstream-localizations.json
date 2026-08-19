@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "files": {
+    "omega/plugin.video.umbrella/resources/language/English/strings.po": [
+      {
+        "context": 49920,
+        "msgid": "Umbrella upstream v%s is newer than mwoDevelop stable v%s. Qualification is in progress.",
+        "msgstr": ""
+      },
+      {
+        "context": 49921,
+        "msgid": "Umbrella upstream v%s is waiting for mwoDevelop intervention: %s.",
+        "msgstr": ""
+      },
+      {
+        "context": 49922,
+        "msgid": "Umbrella mwoDevelop v%s has reported a release incident. Further automatic releases are paused.",
+        "msgstr": ""
+      }
+    ],
+    "omega/plugin.video.umbrella/resources/language/Polish/strings.po": [
+      {
+        "context": 49920,
+        "msgid": "Umbrella upstream v%s is newer than mwoDevelop stable v%s. Qualification is in progress.",
+        "msgstr": "Umbrella upstream v%s jest nowsza od mwoDevelop stable v%s. Trwa kwalifikacja."
+      },
+      {
+        "context": 49921,
+        "msgid": "Umbrella upstream v%s is waiting for mwoDevelop intervention: %s.",
+        "msgstr": "Umbrella upstream v%s oczekuje na interwencje mwoDevelop: %s."
+      },
+      {
+        "context": 49922,
+        "msgid": "Umbrella mwoDevelop v%s has reported a release incident. Further automatic releases are paused.",
+        "msgstr": "Umbrella mwoDevelop v%s zglosila incydent wydania. Kolejne automatyczne wydania sa wstrzymane."
+      }
+    ]
+  }
+}

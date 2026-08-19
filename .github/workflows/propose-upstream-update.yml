@@ -24,6 +24,7 @@ jobs:
       downstream_version: ${{ steps.candidate.outputs.downstream_version }}
       expected_tree: ${{ steps.candidate.outputs.expected_tree }}
       observed_commit: ${{ steps.discovery.outputs.observed_commit }}
+      materialize_outcome: ${{ steps.materialize.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -48,13 +49,17 @@ jobs:
               output.write("observed_commit=%s\n" % value["observed_commit"])
           PY
       - name: Materialize patch-stack candidate without executing it
+        id: materialize
+        continue-on-error: true
         if: steps.discovery.outputs.action == 'prepare'
         run: >-
           python tools/prepare_umbrella_update.py prepare
           --discovery discovery.json
           --output candidate
       - name: Export candidate
-        if: steps.discovery.outputs.action == 'prepare'
+        if: >-
+          steps.discovery.outputs.action == 'prepare' &&
+          steps.materialize.outcome == 'success'
         id: candidate
         run: |
           python - <<'PY'
@@ -70,7 +75,9 @@ jobs:
               output.write("expected_tree=%s\n" % metadata["expected_tree"])
           PY
       - name: Scan exact candidate before executing tests
-        if: steps.discovery.outputs.action == 'prepare'
+        if: >-
+          steps.discovery.outputs.action == 'prepare' &&
+          steps.materialize.outcome == 'success'
         uses: mwoDevelop/kodi/.github/actions/upstream-malware-scan@0ebfd26322d8686c1bef1222f3783cd8e55c5e78
         with:
           baseline: .github/security-baseline.json
@@ -78,7 +85,9 @@ jobs:
           candidate-id: ${{ steps.candidate.outputs.candidate_id }}
           output: security-report.json
       - name: Test the scanned content-addressed candidate
-        if: steps.discovery.outputs.action == 'prepare'
+        if: >-
+          steps.discovery.outputs.action == 'prepare' &&
+          steps.materialize.outcome == 'success'
         run: >-
           python tools/prepare_umbrella_update.py test
           --bundle candidate
@@ -89,23 +98,32 @@ jobs:
           path: discovery.json
           retention-days: 14
       - name: Upload candidate
-        if: steps.discovery.outputs.action == 'prepare'
+        if: >-
+          steps.discovery.outputs.action == 'prepare' &&
+          steps.materialize.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: umbrella-upstream-candidate
           path: candidate/
           retention-days: 7
       - name: Upload scanner attestation
-        if: steps.discovery.outputs.action == 'prepare'
+        if: >-
+          steps.discovery.outputs.action == 'prepare' &&
+          steps.materialize.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: umbrella-upstream-security
           path: security-report.json
           retention-days: 7
+      - name: Fail closed after recording a patch replay conflict
+        if: >-
+          steps.discovery.outputs.action == 'prepare' &&
+          steps.materialize.outcome == 'failure'
+        run: exit 1
 
   report:
     needs: prepare
-    if: always() && needs.prepare.result == 'success'
+    if: always()
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -117,15 +135,20 @@ jobs:
       - name: Reconcile managed issue
         env:
           ACTION: ${{ needs.prepare.outputs.action }}
+          MATERIALIZE_OUTCOME: ${{ needs.prepare.outputs.materialize_outcome }}
+          PREPARE_RESULT: ${{ needs.prepare.result }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
           title="Managed Umbrella upstream reconciliation"
           issue="$(gh issue list --state open --search "$title in:title" --json number,title --jq '.[] | select(.title == "'"$title"'") | .number' | head -n 1)"
-          if [ "$ACTION" = "stop" ] || [ "$ACTION" = "quarantine" ]; then
+          if [ "$ACTION" = "stop" ] || [ "$ACTION" = "quarantine" ] || [ "$PREPARE_RESULT" = "failure" ]; then
             body="$(mktemp)"
             {
               echo "Umbrella upstream update requires manual review."
+              if [ "$MATERIALIZE_OUTCOME" = "failure" ]; then
+                echo "Failure code: downstream_patch_conflict"
+              fi
               echo
               echo '```json'
               cat discovery.json

@@ -132,3 +132,6 @@ patches:
   - topic: "feat: expose downstream release status in Kodi"
     commit: "a8b756ce12c1ac8a556bfa124d03d60948453ed7"
     patch_id: "b65470a00b70167618d5345fe24eac287856c9b6"
+  - topic: "fix: bind release status to upstream base"
+    commit: "b7dabdb3ace6e5f92a167e4cd6c42dd5bc969160"
+    patch_id: "9c475416eb941182f5d648e7888bd1a01d216bed"

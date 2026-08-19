@@ -46,22 +46,20 @@ def manifest_state():
     if not base or not commits:
         raise ValueError("downstream patch manifest is incomplete")
     series = []
+    excluded = (".github/**", ".gitmodules") + MECHANICAL + CONTROL
     for commit in commits:
         patch = run(
-            "git",
-            "-C",
-            str(ROOT),
-            "diff",
-            "%s^" % commit,
-            commit,
-            "--",
-            ".",
-            ":(exclude).github/**",
-            ":(exclude).gitmodules",
-            ":(exclude)omega/plugin.video.umbrella/addon.xml",
-            ":(exclude)downstream-patches.yml",
-            ":(exclude)DOWNSTREAM.md",
-            ":(exclude).gitignore",
+            *(
+                "git",
+                "-C",
+                str(ROOT),
+                "diff",
+                "%s^" % commit,
+                commit,
+                "--",
+                ".",
+                *(":(exclude)%s" % path for path in excluded),
+            )
         )
         series.append((commit, patch))
     digest = hashlib.sha256(b"".join(patch for _, patch in series)).hexdigest()

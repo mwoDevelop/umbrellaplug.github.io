@@ -34,3 +34,5 @@ def test_upstream_proposal_records_patch_conflicts_before_failing_closed():
     assert "--candidate scan-candidate" in workflow
     assert "tar --format=posix -cf umbrella-candidate.tar" in workflow
     assert 'archive.extractall("candidate", filter="data")' in workflow
+    assert "if git diff --cached --quiet; then" in workflow
+    assert "git diff --cached --quiet &&" not in workflow

@@ -278,7 +278,10 @@ jobs:
           git checkout -B "$BRANCH"
           git add -A
           test "$(git write-tree)" = "$EXPECTED_TREE"
-          git diff --cached --quiet && { echo "Candidate produced no change"; exit 1; }
+          if git diff --cached --quiet; then
+            echo "Candidate produced no change"
+            exit 1
+          fi
           git commit -m "Update Umbrella to $DOWNSTREAM_VERSION" \
             -m "Upstream-SHA: $OBSERVED_COMMIT" \
             -m "Candidate-ID: $CANDIDATE_ID"

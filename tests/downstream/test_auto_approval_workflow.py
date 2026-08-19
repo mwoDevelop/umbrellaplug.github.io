@@ -36,3 +36,5 @@ def test_upstream_proposal_records_patch_conflicts_before_failing_closed():
     assert 'archive.extractall("candidate", filter="data")' in workflow
     assert "if git diff --cached --quiet; then" in workflow
     assert "git diff --cached --quiet &&" not in workflow
+    assert 'actual_tree="$(git write-tree)"' in workflow
+    assert 'git checkout -B "$BRANCH"' not in workflow

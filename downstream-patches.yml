@@ -129,3 +129,6 @@ patches:
   - topic: "release: downstream Umbrella 6.7.81.20"
     commit: "87efc15b8d3beaedad0758df878f7aa3e7ed0542"
     patch_id: "a88c96514a9f4190f89cac432473fe530399c47e"
+  - topic: "feat: expose downstream release status in Kodi"
+    commit: "a8b756ce12c1ac8a556bfa124d03d60948453ed7"
+    patch_id: "b65470a00b70167618d5345fe24eac287856c9b6"

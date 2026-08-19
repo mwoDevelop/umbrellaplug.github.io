@@ -135,3 +135,6 @@ patches:
   - topic: "fix: bind release status to upstream base"
     commit: "b7dabdb3ace6e5f92a167e4cd6c42dd5bc969160"
     patch_id: "9c475416eb941182f5d648e7888bd1a01d216bed"
+  - topic: "release: downstream Umbrella 6.7.81.21"
+    commit: "51f7b59bc4e2d0dc9abefc92309e8d42fd01a808"
+    patch_id: "da31c3c62d528fc27cdda655c496d8daf6b19426"

@@ -180,33 +180,55 @@ class AddonCheckUpdate:
 	def run(self):
 		control.log('[ plugin.video.umbrella ]  Addon checking available updates', LOGINFO)
 		try:
-			import re
 			import requests
-			from resources.lib.downstream.addon_policy import upstream_version_check
-			local_version, release_index = upstream_version_check(control.getUmbrellaVersion())
-			repo_xml = requests.get(release_index)
-			if not repo_xml.status_code == 200:
-				return control.log('[ plugin.video.umbrella ]  Could not connect to remote repo XML: status code = %s' % repo_xml.status_code, LOGINFO)
-			repo_version = re.findall(r'<addon id=\"plugin.video.umbrella\".+version=\"(\d*.\d*.\d*)\"', repo_xml.text)[0]
-			def check_version_numbers(current, new): # Compares version numbers and return True if github version is newer
-				current = current.split('.')
-				new = new.split('.')
-				step = 0
-				for i in current:
-					if int(new[step]) > int(i): return True
-					if int(i) > int(new[step]): return False
-					if int(i) == int(new[step]):
-						step += 1
-						continue
-				return False
-			if check_version_numbers(local_version, repo_version):
-				while control.condVisibility('Library.IsScanningVideo'):
-					control.sleep(10000)
-				control.log('[ plugin.video.umbrella ]  A newer version is available. Installed Version: v%s, Repo Version: v%s' % (local_version, repo_version), LOGINFO)
-				control.notification(message=control.lang(35523) % repo_version)
+			from resources.lib.downstream.addon_policy import (
+				fetch_release_status,
+				notification_decision,
+			)
+			installed = control.getUmbrellaVersion()
+			document = fetch_release_status(requests.get, installed)
+			decision = notification_decision(
+				document,
+				installed,
+				last_key=control.setting('mwodevelop.release.notice_key'),
+				last_at=control.setting('mwodevelop.release.notice_at'),
+			)
+			if decision is None:
+				return control.log('[ plugin.video.umbrella ]  Addon update check complete', LOGINFO)
+			kind = decision['kind']
+			values = decision['values']
+			if kind == 'stable_available':
+				message = control.lang(35523) % values[0]
+			elif kind == 'upstream_pending':
+				message = control.lang(40720) % values
+			elif kind == 'blocked':
+				message = control.lang(40721) % values
+			else:
+				message = control.lang(40722) % values[0]
+			while control.condVisibility('Library.IsScanningVideo'):
+				if control.monitor.waitForAbort(10):
+					return
+			control.notification(message=message)
+			control.setSetting('mwodevelop.release.notice_key', decision['key'])
+			control.setSetting('mwodevelop.release.notice_at', decision['at'])
+			control.log(
+				'[ plugin.video.umbrella ]  Release status notification: %s' % kind,
+				LOGINFO,
+			)
 			return control.log('[ plugin.video.umbrella ]  Addon update check complete', LOGINFO)
 		except Exception:
 			log_utils.error()
+
+
+class AddonUpdateMonitor:
+	"""Run the bounded downstream update check without delaying Kodi startup."""
+	def run(self):
+		if control.monitor.waitForAbort(15):
+			return
+		while not control.monitor.abortRequested():
+			AddonCheckUpdate().run()
+			if control.monitor.waitForAbort(6 * 60 * 60):
+				return
 
 class VersionIsUpdateCheck:
 	def run(self):
@@ -438,7 +460,7 @@ def main():
 			libraryService = Thread(target=LibraryService().run, daemon=True)
 			libraryService.start()
 		if control.setting('general.checkAddonUpdates') == 'true':
-			AddonCheckUpdate().run()
+			Thread(target=AddonUpdateMonitor().run, daemon=True).start()
 		VersionIsUpdateCheck().run()
 		checkAutoStart().run()
 

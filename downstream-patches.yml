@@ -138,3 +138,6 @@ patches:
   - topic: "release: downstream Umbrella 6.7.81.21"
     commit: "51f7b59bc4e2d0dc9abefc92309e8d42fd01a808"
     patch_id: "da31c3c62d528fc27cdda655c496d8daf6b19426"
+  - topic: "test: accept forward downstream release revisions"
+    commit: "82d684982209db4e94a80dfe8bf679468ea789bd"
+    patch_id: "4a55582a50e12b2e91cc94777dfdf85df1587531"

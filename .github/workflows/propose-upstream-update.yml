@@ -275,9 +275,13 @@ jobs:
           git fetch origin main
           git fetch origin "$BRANCH:refs/remotes/origin/$BRANCH" || true
           test "$(git rev-parse origin/main)" = "$BASE_COMMIT"
-          git checkout -B "$BRANCH"
           git add -A
-          test "$(git write-tree)" = "$EXPECTED_TREE"
+          actual_tree="$(git write-tree)"
+          if [ "$actual_tree" != "$EXPECTED_TREE" ]; then
+            echo "Candidate tree mismatch: actual=$actual_tree expected=$EXPECTED_TREE"
+            git diff-tree --no-commit-id --raw -r "$EXPECTED_TREE" "$actual_tree"
+            exit 1
+          fi
           if git diff --cached --quiet; then
             echo "Candidate produced no change"
             exit 1

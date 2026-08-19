@@ -25,6 +25,7 @@ jobs:
       expected_tree: ${{ steps.candidate.outputs.expected_tree }}
       observed_commit: ${{ steps.discovery.outputs.observed_commit }}
       materialize_outcome: ${{ steps.materialize.outcome }}
+      scan_outcome: ${{ steps.scan.outcome }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -50,6 +51,12 @@ jobs:
               output.write("action=%s\n" % value["action"])
               output.write("observed_commit=%s\n" % value["observed_commit"])
           PY
+      - name: Upload discovery before any risky candidate operation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: umbrella-upstream-discovery
+          path: discovery.json
+          retention-days: 14
       - name: Materialize patch-stack candidate without executing it
         id: materialize
         continue-on-error: true
@@ -77,30 +84,44 @@ jobs:
               output.write("expected_tree=%s\n" % metadata["expected_tree"])
           PY
       - name: Scan exact candidate before executing tests
+        id: scan
+        continue-on-error: true
         if: >-
           steps.discovery.outputs.action == 'prepare' &&
           steps.materialize.outcome == 'success'
+        env:
+          CANDIDATE_ID: ${{ steps.candidate.outputs.candidate_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p scan-candidate/tree/omega
+          cp candidate/candidate.json scan-candidate/
+          cp -a candidate/tree/omega/plugin.video.umbrella scan-candidate/tree/omega/
+          cp -a candidate/tree/tools candidate/tree/tests scan-candidate/tree/
+          cp candidate/tree/downstream-patches.yml scan-candidate/tree/
+          cp candidate/tree/requirements-ci.txt scan-candidate/tree/
+          echo "product_candidate_id=$CANDIDATE_ID" > scan-candidate/product-candidate.txt
+      - name: Run malware scanners on the exact executable product view
+        id: product-scan
+        continue-on-error: true
+        if: steps.scan.outcome == 'success'
         uses: mwoDevelop/kodi/.github/actions/upstream-malware-scan@0ebfd26322d8686c1bef1222f3783cd8e55c5e78
         with:
           baseline: .github/security-baseline.json
-          candidate-path: candidate
+          candidate-path: scan-candidate
           candidate-id: ${{ steps.candidate.outputs.candidate_id }}
           output: security-report.json
       - name: Test the scanned content-addressed candidate
         if: >-
           steps.discovery.outputs.action == 'prepare' &&
-          steps.materialize.outcome == 'success'
+          steps.materialize.outcome == 'success' &&
+          steps.scan.outcome == 'success' &&
+          steps.product-scan.outcome == 'success'
         run: >-
           python tools/prepare_umbrella_update.py test
           --bundle candidate
-      - name: Upload discovery
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: umbrella-upstream-discovery
-          path: discovery.json
-          retention-days: 14
       - name: Upload candidate
         if: >-
+          always() &&
           steps.discovery.outputs.action == 'prepare' &&
           steps.materialize.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -110,17 +131,22 @@ jobs:
           retention-days: 7
       - name: Upload scanner attestation
         if: >-
+          always() &&
           steps.discovery.outputs.action == 'prepare' &&
-          steps.materialize.outcome == 'success'
+          steps.product-scan.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: umbrella-upstream-security
           path: security-report.json
           retention-days: 7
+          if-no-files-found: ignore
       - name: Fail closed after recording a patch replay conflict
         if: >-
-          steps.discovery.outputs.action == 'prepare' &&
-          steps.materialize.outcome == 'failure'
+          always() && steps.discovery.outputs.action == 'prepare' && (
+            steps.materialize.outcome == 'failure' ||
+            steps.scan.outcome == 'failure' ||
+            steps.product-scan.outcome == 'failure'
+          )
         run: exit 1
 
   report:
@@ -138,6 +164,7 @@ jobs:
         env:
           ACTION: ${{ needs.prepare.outputs.action }}
           MATERIALIZE_OUTCOME: ${{ needs.prepare.outputs.materialize_outcome }}
+          SCAN_OUTCOME: ${{ needs.prepare.outputs.scan_outcome }}
           PREPARE_RESULT: ${{ needs.prepare.result }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -150,6 +177,8 @@ jobs:
               echo "Umbrella upstream update requires manual review."
               if [ "$MATERIALIZE_OUTCOME" = "failure" ]; then
                 echo "Failure code: downstream_patch_conflict"
+              elif [ "$SCAN_OUTCOME" = "failure" ]; then
+                echo "Failure code: product_scan_view_failed"
               fi
               echo
               echo '```json'
@@ -192,6 +221,13 @@ jobs:
           SECURITY_CONTROL_SHA: 0ebfd26322d8686c1bef1222f3783cd8e55c5e78
         run: |
           set -euo pipefail
+          mkdir -p scan-candidate/tree/omega
+          cp candidate/candidate.json scan-candidate/
+          cp -a candidate/tree/omega/plugin.video.umbrella scan-candidate/tree/omega/
+          cp -a candidate/tree/tools candidate/tree/tests scan-candidate/tree/
+          cp candidate/tree/downstream-patches.yml scan-candidate/tree/
+          cp candidate/tree/requirements-ci.txt scan-candidate/tree/
+          echo "product_candidate_id=$CANDIDATE_ID" > scan-candidate/product-candidate.txt
           control="$RUNNER_TEMP/mwodevelop-security-control"
           git init "$control"
           git -C "$control" remote add origin https://github.com/mwoDevelop/kodi.git
@@ -200,7 +236,7 @@ jobs:
           git -C "$control" checkout --detach FETCH_HEAD
           python "$control/tools/upstream_security_scan.py" verify \
             --baseline .github/security-baseline.json \
-            --candidate candidate \
+            --candidate scan-candidate \
             --candidate-id "$CANDIDATE_ID" \
             --report security/security-report.json \
             --policy "$control/manifests/upstream-security.json"

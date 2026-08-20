@@ -22,6 +22,7 @@ LOCALIZATION_PATHS = (
     "omega/plugin.video.umbrella/resources/language/Polish/strings.po",
 )
 PROTECTED = (".github", ".gitmodules")
+UPSTREAM_URL = "https://github.com/umbrellaplug/umbrellaplug.github.io.git"
 CONTROL = (
     ".gitignore",
     "DOWNSTREAM.md",
@@ -45,6 +46,26 @@ def run(*args, cwd=None, input_bytes=None):
         stderr=subprocess.PIPE,
         check=True,
     ).stdout
+
+
+def ensure_upstream_base(checkout, base):
+    """Fetch only the accepted upstream commit when a clean fork clone lacks it."""
+    try:
+        run("git", "cat-file", "-e", "%s^{commit}" % base, cwd=checkout)
+        return
+    except subprocess.CalledProcessError:
+        pass
+    run(
+        "git",
+        "fetch",
+        "--quiet",
+        "--no-tags",
+        "--depth=1",
+        UPSTREAM_URL,
+        base,
+        cwd=checkout,
+    )
+    run("git", "cat-file", "-e", "%s^{commit}" % base, cwd=checkout)
 
 
 def manifest_state():
@@ -115,6 +136,7 @@ def reconstruct(output, upstream_base=None):
     accepted_base, series, digest = manifest_state()
     base = upstream_base or accepted_base
     run("git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(output))
+    ensure_upstream_base(output, base)
     run("git", "checkout", "--quiet", base, cwd=output)
     for commit, patch in series:
         if not patch:

@@ -38,3 +38,6 @@ def test_upstream_proposal_records_patch_conflicts_before_failing_closed():
     assert "git diff --cached --quiet &&" not in workflow
     assert 'actual_tree="$(git write-tree)"' in workflow
     assert 'git checkout -B "$BRANCH"' not in workflow
+    cleanup = "rm -rf -- candidate candidate-artifact scan-candidate security"
+    assert cleanup in workflow
+    assert workflow.index(cleanup) < workflow.index("git add -A")

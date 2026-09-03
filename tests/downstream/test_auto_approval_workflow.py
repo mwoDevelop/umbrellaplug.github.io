@@ -1,7 +1,7 @@
 from pathlib import Path
 
 
-def test_upstream_auto_approval_is_narrow_and_observe_only_by_default():
+def test_upstream_policy_automerge_is_narrow_and_explicitly_gated():
     workflow = Path(
         ".github/workflows/approve-upstream-update.yml"
     ).read_text(encoding="utf-8")
@@ -12,8 +12,12 @@ def test_upstream_auto_approval_is_narrow_and_observe_only_by_default():
     assert 'python "$RUNNER_TEMP/verified-head/tools/rebuild_downstream.py"' not in workflow
     assert '{"malware-scan", "test"}' in workflow
     assert "UMBRELLA_AUTO_MERGE_ENABLED == 'true'" in workflow
-    assert "environment: umbrella-auto-release" in workflow
+    assert "GH_TOKEN: ${{ github.token }}" in workflow
+    assert "actions: write" in workflow
+    assert "environment: umbrella-auto-release" not in workflow
+    assert "gh pr review" not in workflow
     assert "--match-head-commit" in workflow
+    assert "gh workflow run downstream-tests.yml" in workflow
 
 
 def test_upstream_proposal_records_patch_conflicts_before_failing_closed():

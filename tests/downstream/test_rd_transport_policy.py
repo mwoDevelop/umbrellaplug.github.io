@@ -33,13 +33,6 @@ def test_classifies_rd_error_and_retry_after():
 	assert error.retry_after == 2
 
 
-def test_successful_collection_response_has_no_rd_error():
-	error = classify_response(Response(200, [{'id': 'torrent-1'}]))
-	assert error.http_status == 200
-	assert error.error_code == 0
-	assert error.error == ''
-
-
 def test_rate_limit_retries_once(monkeypatch):
 	import resources.lib.downstream.rd_transport_policy as policy
 

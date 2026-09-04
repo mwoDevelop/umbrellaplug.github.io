@@ -16,8 +16,6 @@ from resources.lib.modules import control
 from resources.lib.modules import log_utils
 from resources.lib.modules import string_tools
 from resources.lib.modules.source_utils import supported_video_extensions
-from resources.lib.downstream.rd_file_policy import link_for_selected_path
-from resources.lib.downstream.rd_transport_policy import classify_response, rd_transport
 
 getLS = control.lang
 getSetting = control.setting
@@ -71,7 +69,6 @@ class RealDebrid:
 		self.server_notifications = getSetting('realdebrid.server.notifications') == 'true'
 		self.store_to_cloud = getSetting('realdebrid.saveToCloud') == 'true'
 		self.highlightColor = control.setting('highlight.color')
-		self.last_error = None
 
 	def _get(self, url, fail_check=False, token_ck=False):
 		response = None
@@ -87,8 +84,7 @@ class RealDebrid:
 				url += "?auth_token=%s" % self.token
 			else:
 				url += "&auth_token=%s" % self.token
-			response = rd_transport.request(session, 'GET', url, timeout=45) # cache checkiing of show packs results in random timeout at 30
-			self.last_error = classify_response(response)
+			response = session.get(url, timeout=45) # cache checkiing of show packs results in random timeout at 30
 			if 'Temporarily Down For Maintenance' in response.text:
 				if self.server_notifications and not control.homeWindow.getProperty('umbrella.preResolving'): control.notification(message='Real-Debrid Temporarily Down For Maintenance', icon=rd_icon)
 				log_utils.log('Real-Debrid Temporarily Down For Maintenance', level=log_utils.LOGWARNING)
@@ -119,8 +115,7 @@ class RealDebrid:
 				url += "?auth_token=%s" % self.token
 			else:
 				url += "&auth_token=%s" % self.token
-			response = rd_transport.request(session, 'POST', url, data=data, timeout=15)
-			self.last_error = classify_response(response)
+			response = session.post(url, data=data, timeout=15)
 			if '[204]' in str(response): return None
 			if 'Temporarily Down For Maintenance' in response.text:
 				if self.server_notifications and not control.homeWindow.getProperty('umbrella.preResolving'): control.notification(message='Real-Debrid Temporarily Down For Maintenance', icon=rd_icon)
@@ -132,8 +127,6 @@ class RealDebrid:
 				response = self._post(original_url, data)
 			elif 'error' in response:
 				message = response.get('error')
-				# Keep the public return contract while exposing structured
-				# downstream diagnostics through ``last_error``.
 				if message in ('action_already_done', 'infringing_file', 'parameter_missing', 'too_many_requests'): return None
 				if self.server_notifications and not control.homeWindow.getProperty('umbrella.preResolving'): control.notification(message=message, icon=rd_icon)
 				log_utils.log('Real-Debrid Error:  %s' % message, log_utils.LOGWARNING)
@@ -407,11 +400,9 @@ class RealDebrid:
 		with _rd_magnet_semaphore:
 			try:
 				failed_reason, torrent_id, file_url = 'Unknown', None, None
-				torrent_deleted = False
 				extensions = supported_video_extensions()
 				extras_filtering_list = extras_filter()
 				info_hash = info_hash.lower()
-				title = title or ''
 				compare_title = re.sub(r'[^A-Za-z0-9-]+', '.', title.replace('\'', '').replace('&', 'and').replace('%', '.percent')).lower()
 				elapsed_time, transfer_finished = 0, False
 				self.rd_check_max()
@@ -457,39 +448,21 @@ class RealDebrid:
 						if any(x in filename_info for x in extras_filtering_list): continue
 						match, index = True, value[0]; break
 				if match:
-					selected_path = selected_files[
-						next(
-							position for position, value in enumerate(selected_files)
-							if value[0] == index
-						)
-					][1]['path']
-					rd_link = link_for_selected_path(
-						torrent_info.get('files', []),
-						torrent_info.get('links', []),
-						selected_path,
-						extensions,
-					)
-					if rd_link:
-						file_url = self.unrestrict_link(rd_link)
-					else:
-						failed_reason = 'RD returned an ambiguous file/link mapping'
-					if file_url and file_url.endswith('rar'):
+					rd_link = torrent_info['links'][index]
+					file_url = self.unrestrict_link(rd_link)
+					if file_url.endswith('rar'):
 						file_url, failed_reason = None, 'RD returned unsupported .rar file --> %s' % file_url
 					try:
 						if not any(file_url.lower().endswith(x) for x in extensions):
 							file_url, failed_reason = None, 'RD returned unsupported file extension --> %s' % file_url
 					except:
 							file_url, failed_reason = None, 'RD returned unsupported file extension or error getting file extension.'
-					if not self.store_to_cloud:
-						self.delete_torrent(torrent_id)
-						torrent_deleted = True
+					if not self.store_to_cloud: self.delete_torrent(torrent_id)
 				else:
 					self.delete_torrent(torrent_id)
-					torrent_deleted = True
 				if not file_url:
 					log_utils.log('Real-Debrid: FAILED TO RESOLVE MAGNET "%s" : (%s)' % (magnet_url, failed_reason), __name__, log_utils.LOGWARNING)
-					if not torrent_deleted:
-						self.delete_torrent(torrent_id)
+					self.delete_torrent(torrent_id)
 				return file_url
 			except:
 				log_utils.error('Real-Debrid: Error RESOLVE MAGNET "%s" ' % magnet_url)
@@ -722,14 +695,8 @@ class RealDebrid:
 		try:
 			ck_token = self._get('user', token_ck=True) # check token, and refresh if needed
 			url = torrents_delete_url + "/%s&auth_token=%s" % (torrent_id, self.token)
-			response = rd_transport.request(
-				session,
-				'DELETE',
-				rest_base_url + url,
-				timeout=15,
-			)
-			self.last_error = classify_response(response)
-			if response.status_code in (200, 204):
+			response = session.delete(rest_base_url + url)
+			if not 'error' in response:
 				log_utils.log('Real-Debrid: Torrent ID %s was removed from your active torrents' % torrent_id, __name__, log_utils.LOGDEBUG)
 		except: log_utils.error('Real-Debrid Error: DELETE TORRENT %s : ')
 

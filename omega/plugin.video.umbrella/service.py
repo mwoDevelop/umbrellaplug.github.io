@@ -180,35 +180,55 @@ class AddonCheckUpdate:
 	def run(self):
 		control.log('[ plugin.video.umbrella ]  Addon checking available updates', LOGINFO)
 		try:
-			import re
 			import requests
-			local_version = control.getUmbrellaVersion() # 5 char max so pre-releases do try to compare more chars than github version 6.5.941
-			if len(local_version) > 6: #test version
-				repo_xml = requests.get('https://raw.githubusercontent.com/umbrellakodi/umbrellakodi.github.io/master/matrix/plugin.video.umbrella/addon.xml')
+			from resources.lib.downstream.addon_policy import (
+				fetch_release_status,
+				notification_decision,
+			)
+			installed = control.getUmbrellaVersion()
+			document = fetch_release_status(requests.get, installed)
+			decision = notification_decision(
+				document,
+				installed,
+				last_key=control.setting('mwodevelop.release.notice_key'),
+				last_at=control.setting('mwodevelop.release.notice_at'),
+			)
+			if decision is None:
+				return control.log('[ plugin.video.umbrella ]  Addon update check complete', LOGINFO)
+			kind = decision['kind']
+			values = decision['values']
+			if kind == 'stable_available':
+				message = control.lang(35523) % values[0]
+			elif kind == 'upstream_pending':
+				message = control.lang(49920) % values
+			elif kind == 'blocked':
+				message = control.lang(49921) % values
 			else:
-				repo_xml = requests.get('https://raw.githubusercontent.com/umbrellaplug/umbrellaplug.github.io/master/matrix/plugin.video.umbrella/addon.xml')
-			if not repo_xml.status_code == 200:
-				return control.log('[ plugin.video.umbrella ]  Could not connect to remote repo XML: status code = %s' % repo_xml.status_code, LOGINFO)
-			repo_version = re.findall(r'<addon id=\"plugin.video.umbrella\".+version=\"(\d*.\d*.\d*)\"', repo_xml.text)[0]
-			def check_version_numbers(current, new): # Compares version numbers and return True if github version is newer
-				current = current.split('.')
-				new = new.split('.')
-				step = 0
-				for i in current:
-					if int(new[step]) > int(i): return True
-					if int(i) > int(new[step]): return False
-					if int(i) == int(new[step]):
-						step += 1
-						continue
-				return False
-			if check_version_numbers(local_version, repo_version):
-				while control.condVisibility('Library.IsScanningVideo'):
-					control.sleep(10000)
-				control.log('[ plugin.video.umbrella ]  A newer version is available. Installed Version: v%s, Repo Version: v%s' % (local_version, repo_version), LOGINFO)
-				control.notification(message=control.lang(35523) % repo_version)
+				message = control.lang(49922) % values[0]
+			while control.condVisibility('Library.IsScanningVideo'):
+				if control.monitor.waitForAbort(10):
+					return
+			control.notification(message=message)
+			control.setSetting('mwodevelop.release.notice_key', decision['key'])
+			control.setSetting('mwodevelop.release.notice_at', decision['at'])
+			control.log(
+				'[ plugin.video.umbrella ]  Release status notification: %s' % kind,
+				LOGINFO,
+			)
 			return control.log('[ plugin.video.umbrella ]  Addon update check complete', LOGINFO)
 		except Exception:
 			log_utils.error()
+
+
+class AddonUpdateMonitor:
+	"""Run the bounded downstream update check without delaying Kodi startup."""
+	def run(self):
+		if control.monitor.waitForAbort(15):
+			return
+		while not control.monitor.abortRequested():
+			AddonCheckUpdate().run()
+			if control.monitor.waitForAbort(6 * 60 * 60):
+				return
 
 class VersionIsUpdateCheck:
 	def run(self):
@@ -221,7 +241,8 @@ class VersionIsUpdateCheck:
 				window.setProperty('umbrella.updated', 'true')
 				curVersion = control.getUmbrellaVersion()
 				clearDB_version = '6.7.68' # set to desired version to force any db clearing needed
-				do_cacheClear = (int(oldVersion.replace('.', '')) < int(clearDB_version.replace('.', '')) <= int(curVersion.replace('.', '')))
+				from resources.lib.downstream.version_policy import numeric_version
+				do_cacheClear = (numeric_version(oldVersion, default=0) < numeric_version(clearDB_version) <= numeric_version(curVersion))
 				if do_cacheClear:
 					clr_fanarttv = False
 					cache.clrCache_version_update(clr_providers=True, clr_metacache=False, clr_cache=False, clr_search=False, clr_bookmarks=False)
@@ -294,17 +315,8 @@ try:
 		control.setSetting('scrobble', _scrobble_map[_scrobble_val]) # sync display label with backing integer on upgrade
 	kodiVersion = control.getKodiVersion(full=True)
 	addonVersion = control.addon('plugin.video.umbrella').getAddonInfo('version')
-	if len(str(control.getUmbrellaVersion())) > 6:
-		repoVersion = control.addon('repository.umbrellakodi').getAddonInfo('version')
-		repoName = 'repository.umbrellakodi'
-		testUmbrella = True
-	else:
-		try:
-			repoVersion = control.addon('repository.umbrella').getAddonInfo('version')
-			repoName = 'repository.umbrella'
-		except Exception:
-			repoVersion = 'unknown'
-			repoName = 'Unknown Repo'
+	from resources.lib.downstream.addon_policy import installed_repository
+	repoName, repoVersion = installed_repository(control.addon)
 
 	log_utils.log('########   CURRENT Umbrella VERSIONS REPORT   ########', level=LOGINFO)
 	if testUmbrella == True:
@@ -471,7 +483,7 @@ def main():
 			libraryService = Thread(target=LibraryService().run, daemon=True)
 			libraryService.start()
 		if control.setting('general.checkAddonUpdates') == 'true':
-			AddonCheckUpdate().run()
+			Thread(target=AddonUpdateMonitor().run, daemon=True).start()
 		VersionIsUpdateCheck().run()
 		checkAutoStart().run()
 

@@ -14,7 +14,7 @@ from resources.lib.modules import floppy
 from resources.lib.modules import scrob
 from resources.lib.modules.tmdb4 import getTMDbV4CredentialsInfo
 from resources.lib.modules import favourites
-from json import loads as jsloads
+from resources.lib.downstream.library_policy import has_library_movies
 
 getLS = control.lang
 getSetting = control.setting
@@ -56,7 +56,7 @@ class Navigator:
 			self.favoriteTVShows = False
 			self.favoriteEpisodes = False
 			return
-		self.hasLibMovies = len(jsloads(control.jsonrpc('{"jsonrpc": "2.0", "method": "VideoLibrary.GetMovies", "params": { "limits": { "start" : 0, "end": 1 }, "properties" : ["title", "genre", "uniqueid", "art", "rating", "thumbnail", "playcount", "file"] }, "id": "1"}'))['result']['movies']) > 0
+		self.hasLibMovies = has_library_movies(control.jsonrpc)
 		self.favoriteMovie = favourites.checkForFavourites(content='movies')
 		self.favoriteTVShows = favourites.checkForFavourites(content='tvshows')
 		self.favoriteEpisodes = favourites.checkForFavourites(content='episode')

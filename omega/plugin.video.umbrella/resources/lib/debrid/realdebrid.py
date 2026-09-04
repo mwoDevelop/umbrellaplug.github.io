@@ -16,6 +16,7 @@ from resources.lib.modules import control
 from resources.lib.modules import log_utils
 from resources.lib.modules import string_tools
 from resources.lib.modules.source_utils import supported_video_extensions
+from resources.lib.downstream.rd_file_policy import link_for_selected_path
 from resources.lib.downstream.rd_transport_policy import classify_response, rd_transport
 
 getLS = control.lang
@@ -406,6 +407,7 @@ class RealDebrid:
 		with _rd_magnet_semaphore:
 			try:
 				failed_reason, torrent_id, file_url = 'Unknown', None, None
+				torrent_deleted = False
 				extensions = supported_video_extensions()
 				extras_filtering_list = extras_filter()
 				info_hash = info_hash.lower()
@@ -455,21 +457,39 @@ class RealDebrid:
 						if any(x in filename_info for x in extras_filtering_list): continue
 						match, index = True, value[0]; break
 				if match:
-					rd_link = torrent_info['links'][index]
-					file_url = self.unrestrict_link(rd_link)
-					if file_url.endswith('rar'):
+					selected_path = selected_files[
+						next(
+							position for position, value in enumerate(selected_files)
+							if value[0] == index
+						)
+					][1]['path']
+					rd_link = link_for_selected_path(
+						torrent_info.get('files', []),
+						torrent_info.get('links', []),
+						selected_path,
+						extensions,
+					)
+					if rd_link:
+						file_url = self.unrestrict_link(rd_link)
+					else:
+						failed_reason = 'RD returned an ambiguous file/link mapping'
+					if file_url and file_url.endswith('rar'):
 						file_url, failed_reason = None, 'RD returned unsupported .rar file --> %s' % file_url
 					try:
 						if not any(file_url.lower().endswith(x) for x in extensions):
 							file_url, failed_reason = None, 'RD returned unsupported file extension --> %s' % file_url
 					except:
 							file_url, failed_reason = None, 'RD returned unsupported file extension or error getting file extension.'
-					if not self.store_to_cloud: self.delete_torrent(torrent_id)
+					if not self.store_to_cloud:
+						self.delete_torrent(torrent_id)
+						torrent_deleted = True
 				else:
 					self.delete_torrent(torrent_id)
+					torrent_deleted = True
 				if not file_url:
 					log_utils.log('Real-Debrid: FAILED TO RESOLVE MAGNET "%s" : (%s)' % (magnet_url, failed_reason), __name__, log_utils.LOGWARNING)
-					self.delete_torrent(torrent_id)
+					if not torrent_deleted:
+						self.delete_torrent(torrent_id)
 				return file_url
 			except:
 				log_utils.error('Real-Debrid: Error RESOLVE MAGNET "%s" ' % magnet_url)
@@ -702,8 +722,14 @@ class RealDebrid:
 		try:
 			ck_token = self._get('user', token_ck=True) # check token, and refresh if needed
 			url = torrents_delete_url + "/%s&auth_token=%s" % (torrent_id, self.token)
-			response = session.delete(rest_base_url + url)
-			if not 'error' in response:
+			response = rd_transport.request(
+				session,
+				'DELETE',
+				rest_base_url + url,
+				timeout=15,
+			)
+			self.last_error = classify_response(response)
+			if response.status_code in (200, 204):
 				log_utils.log('Real-Debrid: Torrent ID %s was removed from your active torrents' % torrent_id, __name__, log_utils.LOGDEBUG)
 		except: log_utils.error('Real-Debrid Error: DELETE TORRENT %s : ')
 

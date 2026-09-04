@@ -24,6 +24,10 @@ from resources.lib.modules import customtrakt
 from resources.lib.modules import floppy
 from resources.lib.modules import scrob
 from resources.lib.modules import opensubs
+from resources.lib.downstream.subtitle_policy import (
+	first_subtitle,
+	validated_subtitle_download,
+)
 from difflib import SequenceMatcher
 from resources.lib.modules.source_utils import seas_ep_filter
 from urllib.request import urlopen, Request
@@ -1267,6 +1271,14 @@ class Subtitles:
 				downloadURL, downloadFileName = opensubs.Opensubs().downloadSubs(filter[0]['fileID'], filter[0]['fileName'])
 			except:
 				return log_utils.log('Error getting downloadurl or filename from opensubs.')
+			download = validated_subtitle_download(downloadURL, downloadFileName)
+			if not download:
+				log_utils.log(
+					'OpenSubs returned no usable subtitle download URL.',
+					level=log_utils.LOGWARNING,
+				)
+				return None
+			downloadURL, downloadFileName = download
 			if not control.existsPath(control.subtitlesPath): control.makeFile(control.subtitlesPath)
 			download_path = control.subtitlesPath
 			subtitle = download_path
@@ -1295,6 +1307,12 @@ class Subtitles:
 			except:
 				log_utils.error()
 			subtitles = find('*.srt', subtitle)
+			if not first_subtitle(subtitles):
+				log_utils.log(
+					'OpenSubs download produced no subtitle file.',
+					level=log_utils.LOGWARNING,
+				)
+				return None
 			subtitle_matches = []
 			if len(subtitles) > 1:
 				if season:
@@ -1424,6 +1442,14 @@ class Subtitles:
 					log_utils.log('downloaded subtitle=%s' % filename, level=log_utils.LOGDEBUG)
 
 				downloadURL, downloadFileName = opensubs.Opensubs().downloadSubs(filter[0]['fileID'], filter[0]['fileName'])
+				download = validated_subtitle_download(downloadURL, downloadFileName)
+				if not download:
+					log_utils.log(
+						'OpenSubs returned no usable play-next subtitle URL.',
+						level=log_utils.LOGWARNING,
+					)
+					return 'default'
+				downloadURL, downloadFileName = download
 				subtitle = control.transPath(download_path)
 				
 				def find(pattern, path):
@@ -1450,6 +1476,12 @@ class Subtitles:
 				tools.delete_all_subs()
 				download_opensubs(downloadURL, downloadFileName)
 				subtitles = find('*.srt', subtitle)
+				if not first_subtitle(subtitles):
+					log_utils.log(
+						'OpenSubs play-next download produced no subtitle file.',
+						level=log_utils.LOGWARNING,
+					)
+					return 'default'
 				subtitle_matches = []
 				if len(subtitles) > 1:
 					if season:

@@ -21,9 +21,21 @@
     },
     {
       "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/opensubs.py",
+      "rule": "generic-api-key",
+      "sha256": "6e6393893df879434967146cb5fb7c4ba441e1cf1766b0033ea62a418b01e819"
+    },
+    {
+      "engine": "gitleaks",
       "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/opensubs.py",
       "rule": "generic-api-key",
       "sha256": "9a97570483bfd9d04db86a4e8c761570b5ed72bc1af13b351fd6e37a9539f96f"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/opensubs.py",
+      "rule": "generic-api-key",
+      "sha256": "6e6393893df879434967146cb5fb7c4ba441e1cf1766b0033ea62a418b01e819"
     },
         {
             "engine": "gitleaks",
@@ -79,23 +91,35 @@
             "rule": "generic-api-key",
             "sha256": "d98db5915edab5aed9d55f1868a3e674d903f009e53ea8f939c4585494de7624"
         },
-        {
-            "engine": "gitleaks",
-            "path": "omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
-            "rule": "generic-api-key",
-            "sha256": "08e3090b7eddf663faaf96b11c746a98e34356aca4719f7b639d9520614f4674"
-        },
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
+      "rule": "generic-api-key",
+      "sha256": "08e3090b7eddf663faaf96b11c746a98e34356aca4719f7b639d9520614f4674"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
+      "rule": "generic-api-key",
+      "sha256": "61f452744985c56e811ca4c4f5729b6583c67137f5bb27c2f9145e0f276a1b54"
+    },
         {
             "engine": "gitleaks",
             "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
             "rule": "generic-api-key",
             "sha256": "d98db5915edab5aed9d55f1868a3e674d903f009e53ea8f939c4585494de7624"
         },
-        {
-            "engine": "gitleaks",
-            "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
-            "rule": "generic-api-key",
-            "sha256": "08e3090b7eddf663faaf96b11c746a98e34356aca4719f7b639d9520614f4674"
-        }
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
+      "rule": "generic-api-key",
+      "sha256": "08e3090b7eddf663faaf96b11c746a98e34356aca4719f7b639d9520614f4674"
+    },
+    {
+      "engine": "gitleaks",
+      "path": "tree/omega/plugin.video.umbrella/resources/lib/modules/trakt.py",
+      "rule": "generic-api-key",
+      "sha256": "61f452744985c56e811ca4c4f5729b6583c67137f5bb27c2f9145e0f276a1b54"
+    }
   ]
 }

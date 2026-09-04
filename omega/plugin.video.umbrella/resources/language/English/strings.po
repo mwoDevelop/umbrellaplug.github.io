@@ -6092,6 +6092,18 @@ msgctxt "#40790"
 msgid "[COLOR %s][B]On Hold Manager - Shows[/B][/COLOR]"
 msgstr ""
 
+msgctxt "#40791"
+msgid "Prefer embedded subtitles"
+msgstr ""
+
+msgctxt "#40792"
+msgid "Prefer hearing-impaired subtitles"
+msgstr ""
+
+msgctxt "#40793"
+msgid "Prefer forced subtitles"
+msgstr ""
+
 msgctxt "#49920"
 msgid "Umbrella upstream v%s is newer than mwoDevelop stable v%s. Qualification is in progress."
 msgstr ""

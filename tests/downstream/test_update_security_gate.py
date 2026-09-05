@@ -7,6 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 SCRIPT = ROOT / "tools" / "prepare_umbrella_update.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "propose-upstream-update.yml"
+APPROVAL_WORKFLOW = (
+    ROOT / ".github" / "workflows" / "approve-upstream-update.yml"
+)
 
 
 def _function_source(name):
@@ -46,6 +49,20 @@ def test_exact_pr_head_is_scanned_before_downstream_tests():
     assert "downstream-patches.yml" in workflow
     assert "Scan exact head before executing addon code" in workflow
     assert "baseline: .github/security-baseline.json" in workflow
+
+
+def test_approval_authorizes_exact_required_pull_request_run():
+    workflow = APPROVAL_WORKFLOW.read_text(encoding="utf-8")
+    assert "timeout-minutes: 12" in workflow
+    assert "actions: write" in workflow
+    assert "--workflow downstream-tests.yml" in workflow
+    assert "--event pull_request" in workflow
+    assert r'select(.headSha == \"$VERIFIED_HEAD\")' in workflow
+    assert 'actions/runs/$run_id/approve' in workflow
+    assert 'test "$run_conclusion" = "success"' in workflow
+    assert workflow.index('test "$run_conclusion" = "success"') < workflow.index(
+        'gh pr merge "$NUMBER"'
+    )
 
 
 def test_security_baseline_is_bound_to_current_reviewed_bytes():

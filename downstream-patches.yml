@@ -3,7 +3,7 @@ adapter_version: 1
 upstream:
   repository: "umbrellaplug/umbrellaplug.github.io"
   branch: "master"
-  base: "3c91fd0de2522547e72eb9ea8edfce28ff90c0d2"
+  base: "d5c3d25fb8486339417b8af473d7dd2246bfe2a0"
 protected_paths:
   - ".github"
   - ".gitmodules"
